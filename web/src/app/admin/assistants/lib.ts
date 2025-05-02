@@ -31,6 +31,7 @@ interface PersonaUpsertRequest {
   label_ids: number[] | null;
   user_file_ids: number[] | null;
   user_folder_ids: number[] | null;
+  allowed_models?: string[];
 }
 
 export interface PersonaUpsertParameters {
@@ -60,6 +61,7 @@ export interface PersonaUpsertParameters {
   label_ids: number[] | null;
   user_file_ids: number[];
   user_folder_ids: number[];
+  allowed_models?: string[];
 }
 
 export const createPersonaLabel = (name: string) => {
@@ -120,6 +122,7 @@ function buildPersonaUpsertRequest(
     search_start_date,
     user_file_ids,
     user_folder_ids,
+    allowed_models,
   } = creationRequest;
 
   return {
@@ -152,6 +155,7 @@ function buildPersonaUpsertRequest(
     starter_messages: creationRequest.starter_messages ?? null,
     display_priority: null,
     label_ids: creationRequest.label_ids ?? null,
+    allowed_models: allowed_models ?? null,
     user_file_ids: user_file_ids ?? null,
     user_folder_ids: user_folder_ids ?? null,
   };

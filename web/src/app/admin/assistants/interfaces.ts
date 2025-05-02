@@ -42,6 +42,7 @@ export interface Persona {
   llm_model_provider_override?: string;
   llm_model_version_override?: string;
   num_chunks?: number;
+  allowed_models?: string[];
 }
 
 export interface FullPersona extends Persona {

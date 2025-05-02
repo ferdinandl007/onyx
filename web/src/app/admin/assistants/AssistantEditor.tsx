@@ -281,6 +281,7 @@ export function AssistantEditor({
         ? "user_files"
         : "team_knowledge",
     is_default_persona: existingPersona?.is_default_persona ?? false,
+    allowed_models: existingPersona?.allowed_models ?? [],
   };
 
   interface AssistantPrompt {
@@ -474,6 +475,7 @@ export function AssistantEditor({
             selectedGroups: Yup.array().of(Yup.number()),
             knowledge_source: Yup.string().required(),
             is_default_persona: Yup.boolean().required(),
+            allowed_models: Yup.array().of(Yup.string()),
           })
           .test(
             "system-prompt-or-task-prompt",
@@ -1135,6 +1137,45 @@ export function AssistantEditor({
                 </div>
                 <Separator className="max-w-4xl mt-0" />
 
+                {/* Available Models for this Assistant */}
+                <div className="-mt-2">
+                  <div className="flex gap-x-2 mb-2 items-center">
+                    <div className="block font-medium text-sm">Available Models</div>
+                  </div>
+                  <SearchMultiSelectDropdown
+                    options={llmProviders.flatMap((provider) =>
+                      provider.model_configurations.map((mc) => ({
+                        name: getDisplayNameForModel(mc.name),
+                        value: structureValue(provider.name, provider.provider, mc.name),
+                      }))
+                    )}
+                    onSelect={(selected) => {
+                      setFieldValue("allowed_models", [
+                        ...values.allowed_models,
+                        (selected as any).value,
+                      ]);
+                    }}
+                    allowCustomValues={false}
+                  />
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {values.allowed_models.map((modelValue: string) => {
+                      const { modelName } = destructureValue(modelValue);
+                      return (
+                        <SourceChip
+                          key={modelValue}
+                          title={getDisplayNameForModel(modelName)}
+                          onRemove={() =>
+                            setFieldValue(
+                              "allowed_models",
+                              values.allowed_models.filter((m: string) => m !== modelValue)
+                            )
+                          }
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+
                 <div className="-mt-2">
                   <div className="flex gap-x-2 mb-2 items-center">
                     <div className="block font-medium text-sm">
@@ -1157,6 +1198,7 @@ export function AssistantEditor({
                         ? values.enabled_tools_map[imageGenerationTool.id]
                         : false
                     }
+                    allowedModels={values.allowed_models}
                     onSelect={(selected) => {
                       if (selected === null) {
                         setFieldValue("llm_model_version_override", null);

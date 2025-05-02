@@ -1879,6 +1879,10 @@ class Persona(Base):
             postgresql_where=(builtin_persona == True),  # noqa: E712
         ),
     )
+    # List of allowed LLM descriptors for this assistant (e.g. "Provider__provider__modelName").
+    allowed_models: Mapped[list[str] | None] = mapped_column(
+        postgresql.JSONB(), nullable=True, default=None
+    )
 
 
 class Persona__UserFolder(Base):

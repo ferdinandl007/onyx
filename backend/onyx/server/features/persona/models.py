@@ -87,6 +87,8 @@ class PersonaUpsertRequest(BaseModel):
     display_priority: int | None = None
     user_file_ids: list[int] | None = None
     user_folder_ids: list[int] | None = None
+    # Allowed LLM descriptors for this assistant
+    allowed_models: list[str] | None = None
 
 
 class PersonaSnapshot(BaseModel):
@@ -112,6 +114,8 @@ class PersonaSnapshot(BaseModel):
     document_sets: list[DocumentSet]
     llm_model_provider_override: str | None
     llm_model_version_override: str | None
+    # Allowed LLM descriptors for this assistant
+    allowed_models: list[str] | None = None
     num_chunks: float | None
 
     @classmethod
@@ -149,6 +153,7 @@ class PersonaSnapshot(BaseModel):
             ],
             llm_model_provider_override=persona.llm_model_provider_override,
             llm_model_version_override=persona.llm_model_version_override,
+            allowed_models=persona.allowed_models,
             num_chunks=persona.num_chunks,
         )
 
@@ -210,6 +215,7 @@ class FullPersonaSnapshot(PersonaSnapshot):
             llm_filter_extraction=persona.llm_filter_extraction,
             llm_model_provider_override=persona.llm_model_provider_override,
             llm_model_version_override=persona.llm_model_version_override,
+            allowed_models=persona.allowed_models,
         )
 
 

@@ -23,6 +23,7 @@ interface LLMSelectorProps {
   currentLlm: string | null;
   onSelect: (value: string | null) => void;
   requiresImageGeneration?: boolean;
+  allowedModels?: string[];
 }
 
 export const LLMSelector: React.FC<LLMSelectorProps> = ({
@@ -31,6 +32,7 @@ export const LLMSelector: React.FC<LLMSelectorProps> = ({
   currentLlm,
   onSelect,
   requiresImageGeneration,
+  allowedModels,
 }) => {
   const seenModelNames = new Set();
 
@@ -54,6 +56,11 @@ export const LLMSelector: React.FC<LLMSelectorProps> = ({
         icon: getProviderIcon(provider.provider, modelConfiguration.name),
       }));
   });
+
+  // If allowedModels is provided, filter options accordingly
+  const filteredOptions = allowedModels
+    ? llmOptions.filter((opt) => allowedModels.includes(opt.value))
+    : llmOptions;
 
   const defaultProvider = llmProviders.find(
     (llmProvider) => llmProvider.is_default_provider
@@ -93,7 +100,7 @@ export const LLMSelector: React.FC<LLMSelectorProps> = ({
             </span>
           )}
         </SelectItem>
-        {llmOptions.map((option) => {
+        {filteredOptions.map((option) => {
           if (
             !requiresImageGeneration ||
             modelSupportsImageInput(llmProviders, option.name)

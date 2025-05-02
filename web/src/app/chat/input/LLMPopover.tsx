@@ -113,6 +113,17 @@ export default function LLMPopover({
       };
     }, [llmProviders]);
 
+  // Filter options by allowed_models for the assistant if provided
+  const filteredOptions = useMemo(() => {
+    const allowedModelsList = currentAssistant?.allowed_models;
+    if (allowedModelsList && allowedModelsList.length > 0) {
+      return llmOptions.filter((opt) =>
+        allowedModelsList.includes(opt.value)
+      );
+    }
+    return llmOptions;
+  }, [llmOptions, currentAssistant?.allowed_models]);
+
   const [localTemperature, setLocalTemperature] = useState(
     llmManager.temperature ?? 0.5
   );
@@ -174,7 +185,7 @@ export default function LLMPopover({
         className="w-64 p-1 bg-background border border-background-200 rounded-md shadow-lg flex flex-col"
       >
         <div className="flex-grow max-h-[300px] default-scrollbar overflow-y-auto">
-          {llmOptions.map(({ name, icon, value }, index) => {
+          {filteredOptions.map(({ name, icon, value }, index) => {
             if (
               !requiresImageGeneration ||
               modelSupportsImageInput(llmProviders, name)

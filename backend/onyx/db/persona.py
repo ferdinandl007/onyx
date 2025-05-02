@@ -243,6 +243,7 @@ def create_update_persona(
             icon_color=create_persona_request.icon_color,
             icon_shape=create_persona_request.icon_shape,
             uploaded_image_id=create_persona_request.uploaded_image_id,
+            allowed_models=create_persona_request.allowed_models,
             display_priority=create_persona_request.display_priority,
             remove_image=create_persona_request.remove_image,
             search_start_date=create_persona_request.search_start_date,
@@ -447,6 +448,7 @@ def upsert_persona(
     label_ids: list[int] | None = None,
     user_file_ids: list[int] | None = None,
     user_folder_ids: list[int] | None = None,
+    allowed_models: list[str] | None = None,
     chunks_above: int = CONTEXT_CHUNKS_ABOVE,
     chunks_below: int = CONTEXT_CHUNKS_BELOW,
 ) -> Persona:
@@ -566,6 +568,7 @@ def upsert_persona(
             if is_default_persona is not None
             else existing_persona.is_default_persona
         )
+        existing_persona.allowed_models = allowed_models
 
         # Do not delete any associations manually added unless
         # a new updated list is provided
@@ -623,15 +626,13 @@ def upsert_persona(
             icon_shape=icon_shape,
             icon_color=icon_color,
             uploaded_image_id=uploaded_image_id,
-            display_priority=display_priority,
-            is_visible=is_visible,
+            allowed_models=allowed_models,
+            remove_image=remove_image,
             search_start_date=search_start_date,
-            is_default_persona=(
-                is_default_persona if is_default_persona is not None else False
-            ),
-            user_folders=user_folders or [],
-            user_files=user_files or [],
+            is_visible=is_visible,
             labels=labels or [],
+            user_file_ids=user_file_ids or [],
+            user_folder_ids=user_folder_ids or [],
         )
         db_session.add(new_persona)
         persona = new_persona
