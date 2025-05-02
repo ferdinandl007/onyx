@@ -117,7 +117,7 @@ export default function LLMPopover({
   const filteredOptions = useMemo(() => {
     const allowedModelsList = currentAssistant?.allowed_models;
     if (allowedModelsList && allowedModelsList.length > 0) {
-      return llmOptions.filter((opt) =>
+      return llmOptions.filter((opt: { value: string }) =>
         allowedModelsList.includes(opt.value)
       );
     }
