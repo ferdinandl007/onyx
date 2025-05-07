@@ -118,6 +118,8 @@ OAUTH_CLIENT_SECRET = (
     os.environ.get("OAUTH_CLIENT_SECRET", os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET"))
     or ""
 )
+# OIDC specific configuration
+OPENID_CONFIG_URL = os.environ.get("OPENID_CONFIG_URL", "")
 
 USER_AUTH_SECRET = os.environ.get("USER_AUTH_SECRET", "")
 

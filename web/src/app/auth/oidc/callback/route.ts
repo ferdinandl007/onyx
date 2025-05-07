@@ -23,10 +23,18 @@ export const GET = async (request: NextRequest) => {
 
   // Get the redirect URL from the backend's 'Location' header, or default to '/'
   const redirectUrl = response.headers.get("location") || "/";
-
-  const redirectResponse = NextResponse.redirect(
-    new URL(redirectUrl, getDomain(request))
-  );
+  
+  // Fix URL construction - handle both absolute and relative URLs
+  let redirectResponse;
+  if (redirectUrl.startsWith("http")) {
+    // If it's already an absolute URL, use it directly
+    redirectResponse = NextResponse.redirect(redirectUrl);
+  } else {
+    // For relative URLs, construct properly with domain
+    redirectResponse = NextResponse.redirect(
+      new URL(redirectUrl, getDomain(request))
+    );
+  }
 
   redirectResponse.headers.set("set-cookie", setCookieHeader);
   return redirectResponse;
