@@ -22,7 +22,6 @@ from httpx_oauth.clients.openid import BASE_SCOPES
 from prometheus_fastapi_instrumentator import Instrumentator
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.starlette import StarletteIntegration
-from sqlalchemy.orm import Session
 from starlette.types import Lifespan
 
 from onyx import __version__
@@ -49,6 +48,7 @@ from onyx.configs.app_configs import USER_AUTH_SECRET
 from onyx.configs.app_configs import WEB_DOMAIN
 from onyx.configs.constants import AuthType
 from onyx.configs.constants import POSTGRES_WEB_APP_NAME
+from onyx.db.engine import get_session_context_manager
 from onyx.db.engine import SqlEngine
 from onyx.db.engine import warm_up_connections
 from onyx.server.api_key.api import router as api_key_router
@@ -209,7 +209,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         pool_size=POSTGRES_API_SERVER_POOL_SIZE,
         max_overflow=POSTGRES_API_SERVER_POOL_OVERFLOW,
     )
-    engine = SqlEngine.get_engine()
+    SqlEngine.get_engine()
 
     verify_auth = fetch_versioned_implementation(
         "onyx.auth.users", "verify_auth_setting"
@@ -233,7 +233,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         get_or_generate_uuid()
 
         # If we are multi-tenant, we need to only set up initial public tables
-        with Session(engine) as db_session:
+        with get_session_context_manager() as db_session:
             setup_onyx(db_session, POSTGRES_DEFAULT_SCHEMA)
     else:
         setup_multitenant_onyx()
