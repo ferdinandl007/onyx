@@ -127,10 +127,10 @@ def is_user_admin(user: User | None) -> bool:
 
 
 def verify_auth_setting() -> None:
-    if AUTH_TYPE not in [AuthType.DISABLED, AuthType.BASIC, AuthType.GOOGLE_OAUTH]:
+    if AUTH_TYPE not in [AuthType.DISABLED, AuthType.BASIC, AuthType.GOOGLE_OAUTH, AuthType.OIDC]:
         raise ValueError(
             "User must choose a valid user authentication method: "
-            "disabled, basic, or google_oauth"
+            "disabled, basic, google_oauth, or oidc"
         )
     logger.notice(f"Using Auth Type: {AUTH_TYPE.value}")
 
@@ -1219,6 +1219,9 @@ def get_oauth_router(
             authorize_redirect_url = redirect_url
         else:
             authorize_redirect_url = str(request.url_for(callback_route_name))
+            
+        # Log the redirect URL for debugging
+        logger.info(f"OAuth authorize using redirect URL: {authorize_redirect_url}")
 
         next_url = request.query_params.get("next", "/")
 
@@ -1229,16 +1232,37 @@ def get_oauth_router(
         state = generate_state_token(state_data, state_secret)
 
         # Get the basic authorization URL
-        authorization_url = await oauth_client.get_authorization_url(
-            authorize_redirect_url,
-            state,
-            scopes,
-        )
-
-        # For Google OAuth, add parameters to request refresh tokens
-        if oauth_client.name == "google":
-            authorization_url = add_url_params(
-                authorization_url, {"access_type": "offline", "prompt": "consent"}
+        try:
+            authorization_url = await oauth_client.get_authorization_url(
+                authorize_redirect_url,
+                state,
+                scopes,
+            )
+            
+            # Log the final authorization URL (partial, for security)
+            url_parts = authorization_url.split("?")
+            if len(url_parts) > 1:
+                base_url = url_parts[0]
+                query_params = url_parts[1].split("&")
+                logger.info(f"Authorization URL base: {base_url}")
+                logger.info(f"Authorization URL has {len(query_params)} parameters")
+            
+            # For Google OAuth, add parameters to request refresh tokens
+            if oauth_client.name == "google":
+                authorization_url = add_url_params(
+                    authorization_url, {"access_type": "offline", "prompt": "consent"}
+                )
+                logger.info("Added Google OAuth specific parameters for refresh tokens")
+                
+            # For OpenID Connect, ensure we're requesting a refresh token if needed
+            if hasattr(oauth_client, "base_scopes") and "offline_access" in getattr(oauth_client, "base_scopes", []):
+                logger.info("OIDC client configured with offline_access scope for refresh tokens")
+                
+        except Exception as e:
+            logger.error(f"Error generating authorization URL: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to generate authorization URL: {str(e)}",
             )
 
         return OAuth2AuthorizeResponse(authorization_url=authorization_url)
@@ -1276,88 +1300,154 @@ def get_oauth_router(
         user_manager: BaseUserManager[models.UP, models.ID] = Depends(get_user_manager),
         strategy: Strategy[models.UP, models.ID] = Depends(backend.get_strategy),
     ) -> RedirectResponse:
-        token, state = access_token_state
-        account_id, account_email = await oauth_client.get_id_email(
-            token["access_token"]
-        )
-
-        if account_email is None:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=ErrorCode.OAUTH_NOT_AVAILABLE_EMAIL,
-            )
-
         try:
-            state_data = decode_jwt(state, state_secret, [STATE_TOKEN_AUDIENCE])
-        except jwt.DecodeError:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
+            logger.info(f"OAuth callback received for: {oauth_client.name}")
+            
+            token, state = access_token_state
+            logger.debug(f"Token received: {token.get('token_type', 'unknown')} (expires: {token.get('expires_at')})")
+            logger.debug(f"Refresh token provided: {'Yes' if token.get('refresh_token') else 'No'}")
+            
+            try:
+                account_id, account_email = await oauth_client.get_id_email(
+                    token["access_token"]
+                )
+                logger.info(f"OAuth callback received account info - email: {account_email}")
+            except Exception as e:
+                logger.error(f"Failed to get user info from token: {str(e)}")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Failed to retrieve user information: {str(e)}",
+                )
 
-        next_url = state_data.get("next_url", "/")
-        referral_source = state_data.get("referral_source", None)
-        try:
-            tenant_id = fetch_ee_implementation_or_noop(
-                "onyx.server.tenants.user_mapping", "get_tenant_id_for_email", None
-            )(account_email)
-        except exceptions.UserNotExists:
-            tenant_id = None
+            if account_email is None:
+                logger.error("OAuth provider did not return an email")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=ErrorCode.OAUTH_NOT_AVAILABLE_EMAIL,
+                )
 
-        request.state.referral_source = referral_source
+            try:
+                state_data = decode_jwt(state, state_secret, [STATE_TOKEN_AUDIENCE])
+                logger.debug(f"State data decoded: next_url={state_data.get('next_url', '/')}")
+            except jwt.DecodeError as e:
+                logger.error(f"Failed to decode state token: {str(e)}")
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
 
-        # Proceed to authenticate or create the user
-        try:
-            user = await user_manager.oauth_callback(
-                oauth_client.name,
-                token["access_token"],
-                account_id,
-                account_email,
-                token.get("expires_at"),
-                token.get("refresh_token"),
-                request,
-                associate_by_email=associate_by_email,
-                is_verified_by_default=is_verified_by_default,
-            )
-        except UserAlreadyExists:
+            next_url = state_data.get("next_url", "/")
+            referral_source = state_data.get("referral_source", None)
+            
+            # Tenant lookup logic
+            try:
+                tenant_id = fetch_ee_implementation_or_noop(
+                    "onyx.server.tenants.user_mapping", "get_tenant_id_for_email", None
+                )(account_email)
+                logger.debug(f"Tenant ID for {account_email}: {tenant_id}")
+            except exceptions.UserNotExists:
+                tenant_id = None
+                logger.debug(f"No tenant found for {account_email}")
+                
+            except Exception as e:
+                logger.error(f"Error during tenant lookup: {str(e)}")
+                tenant_id = None
+
+            request.state.referral_source = referral_source
+
+            # Proceed to authenticate or create the user
+            try:
+                user = await user_manager.oauth_callback(
+                    oauth_client.name,
+                    token["access_token"],
+                    account_id,
+                    account_email,
+                    token.get("expires_at"),
+                    token.get("refresh_token"),
+                    request,
+                    associate_by_email=associate_by_email,
+                    is_verified_by_default=is_verified_by_default,
+                )
+                logger.info(f"User {user.id} authenticated via {oauth_client.name}")
+            except UserAlreadyExists:
+                logger.error(f"User already exists but couldn't be associated: {account_email}")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=ErrorCode.OAUTH_USER_ALREADY_EXISTS,
+                )
+            except Exception as e:
+                logger.error(f"Error in oauth_callback: {str(e)}")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Authentication error: {str(e)}",
+                )
+
+            if not user.is_active:
+                logger.error(f"User {user.id} is not active")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=ErrorCode.LOGIN_BAD_CREDENTIALS,
+                )
+
+            # Login user
+            try:
+                response = await backend.login(strategy, user)
+                await user_manager.on_after_login(user, request, response)
+                logger.info(f"Login successful for user {user.id}")
+            except Exception as e:
+                logger.error(f"Error during login: {str(e)}")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Login error: {str(e)}",
+                )
+
+            # Create redirect response and copy cookies
+            try:
+                # Prepare redirect response
+                if tenant_id is None:
+                    # Use URL utility to add parameters
+                    redirect_url = add_url_params(next_url, {"new_team": "true"})
+                    redirect_response = RedirectResponse(redirect_url, status_code=302)
+                    logger.debug(f"Redirecting to new team URL: {redirect_url}")
+                else:
+                    # No parameters to add
+                    redirect_response = RedirectResponse(next_url, status_code=302)
+                    logger.debug(f"Redirecting to: {next_url}")
+
+                # Copy headers from auth response to redirect response
+                for header_name, header_value in response.headers.items():
+                    logger.debug(f"Copying header: {header_name}")
+                    # FastAPI can have multiple Set-Cookie headers as a list
+                    if header_name.lower() == "set-cookie" and isinstance(header_value, list):
+                        for cookie_value in header_value:
+                            redirect_response.headers.append(header_name, cookie_value)
+                    else:
+                        redirect_response.headers[header_name] = header_value
+
+                if hasattr(response, "body"):
+                    redirect_response.body = response.body
+                if hasattr(response, "media_type"):
+                    redirect_response.media_type = response.media_type
+                    
+                # Ensure the redirect status code is preserved (don't copy from response)
+                # This is critical - we always want a 302 here
+                redirect_response.status_code = 302
+                logger.info(f"Final redirect to {redirect_url if tenant_id is None else next_url} with status code 302")
+
+                return redirect_response
+            except Exception as e:
+                logger.error(f"Error creating redirect response: {str(e)}")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Redirect error: {str(e)}",
+                )
+                
+        except HTTPException:
+            # Re-raise HTTP exceptions
+            raise
+        except Exception as e:
+            logger.exception(f"Unexpected error in OAuth callback: {str(e)}")
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=ErrorCode.OAUTH_USER_ALREADY_EXISTS,
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Authentication error: {str(e)}",
             )
-
-        if not user.is_active:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=ErrorCode.LOGIN_BAD_CREDENTIALS,
-            )
-
-        # Login user
-        response = await backend.login(strategy, user)
-        await user_manager.on_after_login(user, request, response)
-
-        # Prepare redirect response
-        if tenant_id is None:
-            # Use URL utility to add parameters
-            redirect_url = add_url_params(next_url, {"new_team": "true"})
-            redirect_response = RedirectResponse(redirect_url, status_code=302)
-        else:
-            # No parameters to add
-            redirect_response = RedirectResponse(next_url, status_code=302)
-
-        # Copy headers from auth response to redirect response, with special handling for Set-Cookie
-        for header_name, header_value in response.headers.items():
-            # FastAPI can have multiple Set-Cookie headers as a list
-            if header_name.lower() == "set-cookie" and isinstance(header_value, list):
-                for cookie_value in header_value:
-                    redirect_response.headers.append(header_name, cookie_value)
-            else:
-                redirect_response.headers[header_name] = header_value
-
-        if hasattr(response, "body"):
-            redirect_response.body = response.body
-        if hasattr(response, "status_code"):
-            redirect_response.status_code = response.status_code
-        if hasattr(response, "media_type"):
-            redirect_response.media_type = response.media_type
-
-        return redirect_response
 
     return router
 

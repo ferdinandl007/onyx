@@ -5,7 +5,7 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Any
 from typing import cast
-
+import httpx
 import sentry_sdk
 import uvicorn
 from fastapi import APIRouter
@@ -17,6 +17,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from httpx_oauth.clients.google import GoogleOAuth2
+from httpx_oauth.clients.openid import OpenID
+from httpx_oauth.clients.openid import BASE_SCOPES
 from prometheus_fastapi_instrumentator import Instrumentator
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.starlette import StarletteIntegration
@@ -39,6 +41,7 @@ from onyx.configs.app_configs import DISABLE_GENERATIVE_AI
 from onyx.configs.app_configs import LOG_ENDPOINT_LATENCY
 from onyx.configs.app_configs import OAUTH_CLIENT_ID
 from onyx.configs.app_configs import OAUTH_CLIENT_SECRET
+from onyx.configs.app_configs import OPENID_CONFIG_URL
 from onyx.configs.app_configs import POSTGRES_API_SERVER_POOL_OVERFLOW
 from onyx.configs.app_configs import POSTGRES_API_SERVER_POOL_SIZE
 from onyx.configs.app_configs import SYSTEM_RECURSION_LIMIT
@@ -377,6 +380,112 @@ def get_application(lifespan_override: Lifespan | None = None) -> FastAPI:
             prefix="/users",
         )
 
+
+    if AUTH_TYPE == AuthType.OIDC:
+        # Ensure we request offline_access for refresh tokens
+        oidc_scopes = list(BASE_SCOPES)
+        if "offline_access" not in oidc_scopes:
+            oidc_scopes.append("offline_access")
+            
+        # Debug logging for OIDC configuration
+        logger.info(f"OIDC scopes: {oidc_scopes}")
+        logger.info(f"OPENID_CONFIG_URL: {OPENID_CONFIG_URL}")
+        logger.info(f"OAUTH_CLIENT_ID: {OAUTH_CLIENT_ID}")
+        logger.info(f"OAUTH_CLIENT_SECRET: {'*****' if OAUTH_CLIENT_SECRET else 'NOT SET'}")
+        logger.info(f"WEB_DOMAIN: {WEB_DOMAIN}")
+        
+        # Ensure the redirect URL has a proper protocol
+        redirect_url = f"{WEB_DOMAIN}/auth/oidc/callback"
+        if not WEB_DOMAIN.startswith(('http://', 'https://')):
+            redirect_url = f"https://{WEB_DOMAIN}/auth/oidc/callback"
+            
+        logger.info(f"Full redirect URL: {redirect_url}")
+        logger.info(f"USER_AUTH_SECRET: {'*****' if USER_AUTH_SECRET else 'NOT SET'}")
+
+        try:
+            # Attempt to validate OIDC configuration by fetching discovery document
+            logger.info(f"Attempting to fetch OIDC discovery document from: {OPENID_CONFIG_URL}")
+            
+            # Use this in production for async handling
+            # async def fetch_config():
+            #     async with httpx.AsyncClient() as client:
+            #         response = await client.get(OPENID_CONFIG_URL, timeout=10.0)
+            #         return response.status_code, response.text
+            
+            # For immediate debugging - synchronous version
+            response = httpx.get(OPENID_CONFIG_URL, timeout=10.0)
+            logger.info(f"OIDC discovery response status: {response.status_code}")
+            if response.status_code == 200:
+                config = response.json()
+                logger.info(f"OIDC discovery endpoints: authorization_endpoint={config.get('authorization_endpoint')}, token_endpoint={config.get('token_endpoint')}")
+            else:
+                logger.error(f"Failed to fetch OIDC discovery document: {response.text}")
+                
+        except Exception as e:
+            logger.error(f"Error validating OIDC configuration: {str(e)}")
+
+        oauth_client = OpenID(
+            OAUTH_CLIENT_ID,
+            OAUTH_CLIENT_SECRET,
+            OPENID_CONFIG_URL,
+            # Use the configured scopes
+            base_scopes=oidc_scopes,
+        )
+
+        include_auth_router_with_prefix(
+            application,
+            create_onyx_oauth_router(
+                oauth_client,
+                auth_backend,
+                USER_AUTH_SECRET,
+                associate_by_email=True,
+                is_verified_by_default=True,
+                redirect_url=redirect_url,
+            ),
+            prefix="/auth/oidc",
+        )
+
+        # need basic auth router for `logout` endpoint
+        include_auth_router_with_prefix(
+            application,
+            fastapi_users.get_auth_router(auth_backend),
+            prefix="/auth",
+        )
+
+        # Debug endpoint for OIDC
+        @application.get("/auth/oidc/debug", tags=["auth"])
+        async def debug_oidc():
+            """Debug endpoint for OIDC configuration."""
+            try:
+                import httpx
+                import json
+                
+                debug_info = {
+                    "oidc_config": {
+                        "openid_config_url": OPENID_CONFIG_URL,
+                        "client_id": OAUTH_CLIENT_ID,
+                        "client_secret_provided": bool(OAUTH_CLIENT_SECRET),
+                        "web_domain": WEB_DOMAIN,
+                        "redirect_url": redirect_url,
+                        "scopes": list(oidc_scopes),
+                    },
+                    "discovery_document": None,
+                    "error": None
+                }
+                
+                try:
+                    response = httpx.get(OPENID_CONFIG_URL, timeout=10.0)
+                    if response.status_code == 200:
+                        debug_info["discovery_document"] = response.json()
+                    else:
+                        debug_info["error"] = f"Failed to fetch discovery document: {response.status_code} - {response.text}"
+                except Exception as e:
+                    debug_info["error"] = f"Error fetching discovery document: {str(e)}"
+                    
+                return debug_info
+            except Exception as e:
+                return {"error": f"Debug endpoint error: {str(e)}"}
+
     if AUTH_TYPE == AuthType.GOOGLE_OAUTH:
         # For Google OAuth, refresh tokens are requested by:
         # 1. Adding the right scopes
@@ -412,6 +521,7 @@ def get_application(lifespan_override: Lifespan | None = None) -> FastAPI:
         AUTH_TYPE == AuthType.CLOUD
         or AUTH_TYPE == AuthType.BASIC
         or AUTH_TYPE == AuthType.GOOGLE_OAUTH
+        or AUTH_TYPE == AuthType.OIDC
     ):
         # Add refresh token endpoint for OAuth as well
         include_auth_router_with_prefix(
