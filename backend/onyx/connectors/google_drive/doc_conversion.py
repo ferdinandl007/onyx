@@ -336,7 +336,7 @@ def convert_drive_item_to_document(
             or isinstance(doc_or_failure, Document)
             or not (
                 isinstance(doc_or_failure.exception, HttpError)
-                and doc_or_failure.exception.status_code in [401, 403, 404]
+                and doc_or_failure.exception.status_code == 403
             )
         ):
             return doc_or_failure
