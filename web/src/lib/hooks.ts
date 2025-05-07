@@ -736,7 +736,8 @@ const MODEL_DISPLAY_NAMES: { [key: string]: string } = {
   // Google Models
 
   // 2.5 pro models
-  "gemini-2.5-pro-exp-03-25": "Gemini 2.5 Pro (Experimental March 25th)",
+  "gemini-2.5-pro-preview-05-06": "Gemini 2.5 Pro (Preview May 6th)",
+  "gemini-2.5-flash-preview-04-17": "Gemini 2.5 Flash (Preview April 17th)",
 
   // 2.0 flash lite models
   "gemini-2.0-flash-lite": "Gemini 2.0 Flash Lite",

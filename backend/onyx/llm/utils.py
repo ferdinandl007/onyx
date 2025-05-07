@@ -646,6 +646,9 @@ def get_max_input_tokens_from_llm_provider(
 def model_supports_image_input(model_name: str, model_provider: str) -> bool:
     model_map = get_model_map()
     try:
+        if "gemini" in model_name:
+            return True
+        
         model_obj = _find_model_obj(
             model_map,
             model_provider,

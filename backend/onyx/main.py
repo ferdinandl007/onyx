@@ -452,40 +452,6 @@ def get_application(lifespan_override: Lifespan | None = None) -> FastAPI:
             prefix="/auth",
         )
 
-        # Debug endpoint for OIDC
-        @application.get("/auth/oidc/debug", tags=["auth"])
-        async def debug_oidc():
-            """Debug endpoint for OIDC configuration."""
-            try:
-                import httpx
-                import json
-                
-                debug_info = {
-                    "oidc_config": {
-                        "openid_config_url": OPENID_CONFIG_URL,
-                        "client_id": OAUTH_CLIENT_ID,
-                        "client_secret_provided": bool(OAUTH_CLIENT_SECRET),
-                        "web_domain": WEB_DOMAIN,
-                        "redirect_url": redirect_url,
-                        "scopes": list(oidc_scopes),
-                    },
-                    "discovery_document": None,
-                    "error": None
-                }
-                
-                try:
-                    response = httpx.get(OPENID_CONFIG_URL, timeout=10.0)
-                    if response.status_code == 200:
-                        debug_info["discovery_document"] = response.json()
-                    else:
-                        debug_info["error"] = f"Failed to fetch discovery document: {response.status_code} - {response.text}"
-                except Exception as e:
-                    debug_info["error"] = f"Error fetching discovery document: {str(e)}"
-                    
-                return debug_info
-            except Exception as e:
-                return {"error": f"Debug endpoint error: {str(e)}"}
-
     if AUTH_TYPE == AuthType.GOOGLE_OAUTH:
         # For Google OAuth, refresh tokens are requested by:
         # 1. Adding the right scopes
