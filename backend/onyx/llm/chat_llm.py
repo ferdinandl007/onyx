@@ -28,6 +28,9 @@ from langchain_core.prompt_values import PromptValue
 from onyx.configs.app_configs import LOG_DANSWER_MODEL_INTERACTIONS
 from onyx.configs.app_configs import MOCK_LLM_RESPONSE
 from onyx.configs.chat_configs import QA_TIMEOUT
+from onyx.configs.chat_configs import GEMINI_THINKING_BUDGET_TOKENS
+from onyx.configs.chat_configs import GEMINI_THINKING_ENABLED
+from onyx.configs.chat_configs import GEMINI_THINKING_MODEL_NAME
 from onyx.configs.model_configs import (
     DISABLE_LITELLM_STREAMING,
 )
@@ -284,6 +287,47 @@ class DefaultMultiLLM(LLM):
 
         # Create a dictionary for model-specific arguments if it's None
         model_kwargs = model_kwargs or {}
+
+        # --- Gemini: thinking/reasoning budget tokens ---
+        # Allow configuring Gemini's 'thinking' parameter via GEMINI_THINKING_BUDGET_TOKENS.
+        # This maps to `thinking: {"budget_tokens": N}` in LiteLLM.
+        # Setting budget_tokens to 0 is intended to disable reasoning.
+        # See: https://docs.litellm.ai/docs/providers/gemini
+
+
+        if model_provider == "vertex_ai" and GEMINI_THINKING_MODEL_NAME in model_name:
+            # This variable will hold the configuration to be applied, if any.
+            # If it remains None, model_kwargs["thinking"] is not modified by this block.
+            thinking_config_to_set = None 
+
+            if GEMINI_THINKING_ENABLED:
+                try:
+                    budget_tokens = int(GEMINI_THINKING_BUDGET_TOKENS)
+                    thinking_config_to_set = {
+                        "type": "enabled",
+                        "budget_tokens": budget_tokens,
+                        # "include_thoughts": True, 
+                    }
+                except ValueError:
+                    logger.warning(
+                        f"GEMINI_THINKING_BUDGET_TOKENS ('{GEMINI_THINKING_BUDGET_TOKENS}') "
+                        f"is not a valid integer. Gemini 'thinking' configuration for "
+                        f"model {model_name} via env var will be skipped due to parsing error."
+                    )
+            else:  # Corresponds to gemini_thinking_enabled being false
+                logger.info(
+                    f"GEMINI_THINKING_ENABLED is not active. Gemini 'thinking' will be "
+                    f"explicitly set to 'disabled' for model {model_name}."
+                )
+                thinking_config_to_set = {
+                    "type": "disabled",
+                    "budget_tokens": 0,
+                    # "include_thoughts": True, 
+                }
+            
+            if thinking_config_to_set is not None:
+                model_kwargs["thinking"] = thinking_config_to_set
+        # --- End Gemini thinking config ---
 
         # NOTE: have to set these as environment variables for Litellm since
         # not all are able to passed in but they always support them set as env
