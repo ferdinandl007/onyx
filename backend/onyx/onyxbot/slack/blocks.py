@@ -687,12 +687,12 @@ def build_slack_response_blocks(
         + answer_blocks
         + publish_ephemeral_message_block
         + ai_feedback_block
-        + citations_divider
-        + citations_blocks
-        + document_blocks
         + buttons_divider
         + web_follow_up_block
         + follow_up_block
+        + citations_divider
+        + citations_blocks
+        + document_blocks
     )
 
     if len(all_blocks) > SLACK_MESSAGE_BLOCK_LIMIT:
