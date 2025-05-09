@@ -20,7 +20,7 @@ personas:
     # This feature can be overriden for all personas via DISABLE_LLM_DOC_RELEVANCE env variable
     # Disabling by default since for many deployments, it causes the user to hit rate limits with
     # their LLM provider (e.g. Azure) or causes extremely slow results (Ollama).
-    llm_relevance_filter: false
+    llm_relevance_filter: true
     # Enable/Disable usage of the LLM to extract query time filters including source type and time range filters
     llm_filter_extraction: true
     # Decay documents priority as they age, options are:
