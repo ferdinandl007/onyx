@@ -27,6 +27,7 @@ import { Input } from "@/components/ui/input";
 import { FiTrash2 } from "react-icons/fi";
 import { deleteAllChatSessions } from "../lib";
 import { useChatContext } from "@/components/context/ChatContext";
+import { UserRole } from "@/lib/types";
 
 type SettingsSection = "settings" | "password";
 
@@ -64,6 +65,8 @@ export function UserSettingsModal({
     useState<SettingsSection>("settings");
   const [isDeleteAllLoading, setIsDeleteAllLoading] = useState(false);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+
+  const isAdmin = user?.role === UserRole.ADMIN;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -381,6 +384,7 @@ export function UserSettingsModal({
                         }
                       }
                     }}
+                    isAdmin={isAdmin}
                   />
                 </div>
                 <div className="pt-4 border-t border-border">

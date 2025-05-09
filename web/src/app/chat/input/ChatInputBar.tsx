@@ -29,7 +29,7 @@ import UnconfiguredProviderText from "@/components/chat/UnconfiguredProviderText
 import { useAssistants } from "@/components/context/AssistantsContext";
 import { CalendarIcon, TagIcon, XIcon, FolderIcon } from "lucide-react";
 import { FilterPopup } from "@/components/search/filtering/FilterPopup";
-import { DocumentSet, Tag } from "@/lib/types";
+import { DocumentSet, Tag, UserRole } from "@/lib/types";
 import { SourceIcon } from "@/components/SourceIcon";
 import { getFormattedDateRangeString } from "@/lib/dateUtils";
 import { truncateString } from "@/lib/utils";
@@ -430,6 +430,8 @@ export function ChatInputBar({
     }
   };
 
+  const isAdmin = user?.role === UserRole.ADMIN;
+
   return (
     <div id="onyx-chat-input">
       <div className="flex  justify-center mx-auto">
@@ -793,33 +795,37 @@ export function ChatInputBar({
                   tooltipContent={"Upload files and attach user files"}
                 />
 
-                <LLMPopover
-                  llmProviders={llmProviders}
-                  llmManager={llmManager}
-                  requiresImageGeneration={false}
-                  currentAssistant={selectedAssistant}
-                  trigger={
-                    <button
-                      className="dark:text-white text-black focus:outline-none"
-                      data-testid="llm-popover-trigger"
-                    >
-                      <ChatInputOption
-                        minimize
-                        toggle
-                        flexPriority="stiff"
-                        name={getDisplayNameForModel(
-                          llmManager?.currentLlm.modelName || "Models"
-                        )}
-                        Icon={getProviderIcon(
-                          llmManager?.currentLlm.provider || "anthropic",
-                          llmManager?.currentLlm.modelName ||
-                            "claude-3-5-sonnet-20240620"
-                        )}
-                        tooltipContent="Switch models"
-                      />
-                    </button>
-                  }
-                />
+                {isAdmin ? (
+                  <LLMPopover
+                    llmProviders={llmProviders}
+                    llmManager={llmManager}
+                    requiresImageGeneration={false}
+                    currentAssistant={selectedAssistant}
+                    trigger={
+                      <button
+                        className="dark:text-white text-black focus:outline-none"
+                        data-testid="llm-popover-trigger"
+                      >
+                        <ChatInputOption
+                          minimize
+                          toggle
+                          flexPriority="stiff"
+                          name={getDisplayNameForModel(
+                            llmManager?.currentLlm.modelName || "Models"
+                          )}
+                          Icon={getProviderIcon(
+                            llmManager?.currentLlm.provider || "anthropic",
+                            llmManager?.currentLlm.modelName ||
+                              "claude-3-5-sonnet-20240620"
+                          )}
+                          tooltipContent="Switch models"
+                        />
+                      </button>
+                    }
+                  />
+                ) : (
+                  <></>
+                )}
 
                 {retrievalEnabled && (
                   <FilterPopup

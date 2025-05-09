@@ -27,6 +27,7 @@ import { Slider } from "@/components/ui/slider";
 import { useUser } from "@/components/user/UserProvider";
 import { TruncatedText } from "@/components/ui/truncatedText";
 import { ChatInputOption } from "./ChatInputOption";
+import { UserRole } from "@/lib/types";
 
 interface LLMPopoverProps {
   llmProviders: LLMProviderDescriptor[];
@@ -49,6 +50,8 @@ export default function LLMPopover({
 }: LLMPopoverProps) {
   const [isOpen, setIsOpen] = useState(false);
   const { user } = useUser();
+
+  const isAdmin: boolean | undefined = user?.role === UserRole.ADMIN;
 
   // Memoize the options to prevent unnecessary recalculations
   const { llmOptions, defaultProvider, defaultModelDisplayName } =
@@ -139,6 +142,7 @@ export default function LLMPopover({
           <button
             className="dark:text-[#fff] text-[#000] focus:outline-none"
             data-testid="llm-popover-trigger"
+            disabled={!isAdmin}
           >
             <ChatInputOption
               minimize
@@ -161,12 +165,16 @@ export default function LLMPopover({
             />
           </button>
         ),
-    [defaultModelDisplayName, defaultProvider, llmManager?.currentLlm]
+    [defaultModelDisplayName, defaultProvider, llmManager?.currentLlm, isAdmin]
   );
+
+  if (!isAdmin) {
+    return null;
+  }
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
-      <PopoverTrigger asChild>{triggerContent}</PopoverTrigger>
+      <PopoverTrigger asChild disabled={!isAdmin}>{triggerContent}</PopoverTrigger>
       <PopoverContent
         align="start"
         className="w-64 p-1 bg-background border border-background-200 rounded-md shadow-lg flex flex-col"

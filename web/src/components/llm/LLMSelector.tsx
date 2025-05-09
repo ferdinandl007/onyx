@@ -21,6 +21,7 @@ interface LLMSelectorProps {
   currentLlm: string | null;
   onSelect: (value: string | null) => void;
   requiresImageGeneration?: boolean;
+  isAdmin?: boolean;
 }
 
 export const LLMSelector: React.FC<LLMSelectorProps> = ({
@@ -29,7 +30,20 @@ export const LLMSelector: React.FC<LLMSelectorProps> = ({
   currentLlm,
   onSelect,
   requiresImageGeneration,
-}) => {
+  isAdmin,
+}: LLMSelectorProps) => {
+  if (!isAdmin) {
+    if (userSettings) {
+      return (
+        <div className="min-w-40 p-2 text-sm text-gray-500 border border-gray-300 rounded-md h-[40px] flex items-center">
+          Model access is admin-controlled. Please contact your Onyx administrator.
+        </div>
+      );
+    }
+    // In regular chat UI, hide entirely for non-admins
+    return null;
+  }
+
   const seenModelNames = new Set();
 
   const llmOptions = llmProviders.flatMap((provider) => {
@@ -72,6 +86,7 @@ export const LLMSelector: React.FC<LLMSelectorProps> = ({
     <Select
       value={currentLlm ? currentLlm : "default"}
       onValueChange={(value) => onSelect(value === "default" ? null : value)}
+      disabled={!isAdmin}
     >
       <SelectTrigger className="min-w-40">
         <SelectValue>

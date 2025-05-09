@@ -12,6 +12,8 @@ import { Hoverable } from "@/components/Hoverable";
 import { IconType } from "react-icons";
 import { FiRefreshCw } from "react-icons/fi";
 import LLMPopover from "./input/LLMPopover";
+import { useUser } from "@/components/user/UserProvider";
+import { UserRole } from "@/lib/types";
 
 export default function RegenerateOption({
   selectedAssistant,
@@ -26,6 +28,8 @@ export default function RegenerateOption({
 }) {
   const { llmProviders } = useChatContext();
   const llmManager = useLlmManager(llmProviders);
+  const { user } = useUser();
+  const isAdmin = user?.role === UserRole.ADMIN;
   const [isOpen, setIsOpen] = useState(false);
   const toggleDropdownVisible = (isVisible: boolean) => {
     setIsOpen(isVisible);
@@ -33,6 +37,7 @@ export default function RegenerateOption({
   };
 
   return (
+    isAdmin ? (
     <LLMPopover
       llmManager={llmManager}
       llmProviders={llmProviders}
@@ -61,5 +66,6 @@ export default function RegenerateOption({
         });
       }}
     />
+    ) : null
   );
 }

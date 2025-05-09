@@ -1142,6 +1142,7 @@ export function AssistantEditor({
                     </div>
                   </div>
                   <LLMSelector
+                    userSettings={true}
                     llmProviders={llmProviders}
                     currentLlm={
                       values.llm_model_version_override
@@ -1173,6 +1174,7 @@ export function AssistantEditor({
                         }
                       }
                     }}
+                    isAdmin={user?.role === UserRole.ADMIN}
                   />
                 </div>
 
