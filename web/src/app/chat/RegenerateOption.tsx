@@ -29,7 +29,8 @@ export default function RegenerateOption({
   const { llmProviders } = useChatContext();
   const llmManager = useLlmManager(llmProviders);
   const { user } = useUser();
-  const isAdmin = user?.role === UserRole.ADMIN;
+  const hasModelAccess = user?.role === UserRole.ADMIN || user?.role === UserRole.PRO_USER
+;
   const [isOpen, setIsOpen] = useState(false);
   const toggleDropdownVisible = (isVisible: boolean) => {
     setIsOpen(isVisible);
@@ -37,7 +38,7 @@ export default function RegenerateOption({
   };
 
   return (
-    isAdmin ? (
+    hasModelAccess ? (
     <LLMPopover
       llmManager={llmManager}
       llmProviders={llmProviders}

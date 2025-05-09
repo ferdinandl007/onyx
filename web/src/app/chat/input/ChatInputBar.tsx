@@ -430,7 +430,8 @@ export function ChatInputBar({
     }
   };
 
-  const isAdmin = user?.role === UserRole.ADMIN;
+  const hasModelAccess = user?.role === UserRole.ADMIN || user?.role === UserRole.PRO_USER
+;
 
   return (
     <div id="onyx-chat-input">
@@ -795,7 +796,7 @@ export function ChatInputBar({
                   tooltipContent={"Upload files and attach user files"}
                 />
 
-                {isAdmin ? (
+                {hasModelAccess ? (
                   <LLMPopover
                     llmProviders={llmProviders}
                     llmManager={llmManager}

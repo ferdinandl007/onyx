@@ -51,7 +51,8 @@ export default function LLMPopover({
   const [isOpen, setIsOpen] = useState(false);
   const { user } = useUser();
 
-  const isAdmin: boolean | undefined = user?.role === UserRole.ADMIN;
+  const hasModelAccess: boolean | undefined = user?.role === UserRole.ADMIN || user?.role === UserRole.PRO_USER
+;
 
   // Memoize the options to prevent unnecessary recalculations
   const { llmOptions, defaultProvider, defaultModelDisplayName } =
@@ -142,7 +143,7 @@ export default function LLMPopover({
           <button
             className="dark:text-[#fff] text-[#000] focus:outline-none"
             data-testid="llm-popover-trigger"
-            disabled={!isAdmin}
+            disabled={!hasModelAccess}
           >
             <ChatInputOption
               minimize
@@ -165,16 +166,16 @@ export default function LLMPopover({
             />
           </button>
         ),
-    [defaultModelDisplayName, defaultProvider, llmManager?.currentLlm, isAdmin]
+    [defaultModelDisplayName, defaultProvider, llmManager?.currentLlm, hasModelAccess]
   );
 
-  if (!isAdmin) {
+  if (!hasModelAccess) {
     return null;
   }
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
-      <PopoverTrigger asChild disabled={!isAdmin}>{triggerContent}</PopoverTrigger>
+      <PopoverTrigger asChild disabled={!hasModelAccess}>{triggerContent}</PopoverTrigger>
       <PopoverContent
         align="start"
         className="w-64 p-1 bg-background border border-background-200 rounded-md shadow-lg flex flex-col"

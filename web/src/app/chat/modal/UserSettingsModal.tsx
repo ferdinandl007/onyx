@@ -66,7 +66,8 @@ export function UserSettingsModal({
   const [isDeleteAllLoading, setIsDeleteAllLoading] = useState(false);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
 
-  const isAdmin = user?.role === UserRole.ADMIN;
+  const hasModelAccess = user?.role === UserRole.ADMIN || user?.role === UserRole.PRO_USER
+;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -384,7 +385,7 @@ export function UserSettingsModal({
                         }
                       }
                     }}
-                    isAdmin={isAdmin}
+                    isAdmin={hasModelAccess}
                   />
                 </div>
                 <div className="pt-4 border-t border-border">

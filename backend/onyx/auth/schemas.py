@@ -16,6 +16,7 @@ class UserRole(str, Enum):
     - Limited can access a limited set of basic api endpoints
     - Slack are users that have used onyx via slack but dont have a web login
     - External permissioned users that have been picked up during the external permissions sync process but don't have a web login
+    - PRO_USER is a new role
     """
 
     LIMITED = "limited"
@@ -25,6 +26,7 @@ class UserRole(str, Enum):
     GLOBAL_CURATOR = "global_curator"
     SLACK_USER = "slack_user"
     EXT_PERM_USER = "ext_perm_user"
+    PRO_USER = "pro_user"
 
     def is_web_login(self) -> bool:
         return self not in [

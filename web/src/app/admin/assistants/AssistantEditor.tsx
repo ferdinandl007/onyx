@@ -1174,7 +1174,7 @@ export function AssistantEditor({
                         }
                       }
                     }}
-                    isAdmin={user?.role === UserRole.ADMIN}
+                    isAdmin={user?.role === UserRole.ADMIN || user?.role === UserRole.PRO_USER}
                   />
                 </div>
 
