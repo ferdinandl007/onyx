@@ -70,15 +70,26 @@ class CitationProcessor:
                 if piece_that_comes_after == "\n" and in_code_block(self.llm_out):
                     self.curr_segment = self.curr_segment.replace("```", "```plaintext")
 
-        citation_pattern = r"\[(\d+)\]|\[\[(\d+)\]\]"  # [1], [[1]], etc.
+        # Updated regex to capture both single citations and grouped citations with commas
+        citation_pattern = r"\[(\d+(?:,\s*\d+)*)\]|\[\[(\d+(?:,\s*\d+)*)\]\]"  # [1], [[1]], [1,2,3], [[1,2,3]], etc.
         citations_found = list(re.finditer(citation_pattern, self.curr_segment))
-        possible_citation_pattern = r"(\[+\d*$)"  # [1, [, [[, [[2, etc.
+        
+        # Enhanced pattern to detect incomplete citations at the end of a chunk
+        # This will match all possible partial citation patterns, including nested brackets
+        # Examples: '[', '[1', '[1,', '[1, 2', '[[', '[[1', '[1, 2, ', etc.
+        possible_citation_pattern = r"(\[+(?:\d+)?(?:,\s*\d+)*(?:,\s*)?$)"
         possible_citation_found = re.search(
             possible_citation_pattern, self.curr_segment
         )
 
         if len(citations_found) == 0 and len(self.llm_out) - self.past_cite_count > 5:
             self.current_citations = []
+
+        # Log debugging for partial citation handling (optional, remove in production)
+        if possible_citation_found:
+            logger.debug(
+                f"Detected partial citation: '{possible_citation_found.group(0)}' - holding for next chunk"
+            )
 
         result = ""
         if citations_found and not in_code_block(self.llm_out):
@@ -88,15 +99,20 @@ class CitationProcessor:
                 citation = citations_found.pop(0)
                 citation_groups = citation.groups()
                 
-                # Handle grouped citations [1, 3, 5, 7]
-                if citation_groups[2] is not None:
-                    # This is a grouped citation
-                    grouped_values = [int(val.strip()) for val in citation_groups[2].split(',')]
+                # Get the matched group (either from first or second capture group)
+                matched_group = next((group for group in citation_groups if group is not None), None)
+                if matched_group is None:
+                    continue
+                
+                # Check if this is a grouped citation (contains commas)
+                if ',' in matched_group:
+                    # Handle grouped citations [1,2,3]
+                    grouped_values = [int(val.strip()) for val in matched_group.split(',')]
                     start, end = citation.span()
                     
                     # Replace the grouped citation with individual citations
                     replacement = ""
-                    for i, value in enumerate(grouped_values):
+                    for value in grouped_values:
                         if not (1 <= value <= self.max_citation_num):
                             continue
                             
@@ -149,11 +165,8 @@ class CitationProcessor:
                     last_citation_end = start + length_to_add + len(replacement)
                     continue
                 
-                # Regular single citation handling as before
-                numerical_value = int(
-                    next(group for group in citation_groups if group is not None)
-                )
-
+                # Regular single citation handling
+                numerical_value = int(matched_group)
                 if not (1 <= numerical_value <= self.max_citation_num):
                     continue
 
