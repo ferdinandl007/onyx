@@ -121,7 +121,6 @@ prompts:
       Answer my query based on the documents provided.
       The documents may not all be relevant, ignore any documents that are not directly relevant
       to the most recent user query.
-      Never reference sources like '[1,2,3]'
       I have not read or seen any of the documents and do not want to read them. Do not refer to them by Document number.
 
       If there are no relevant documents, refer to the chat history and your internal knowledge.

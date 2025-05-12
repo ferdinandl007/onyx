@@ -86,8 +86,72 @@ class CitationProcessor:
             length_to_add = 0
             while len(citations_found) > 0:
                 citation = citations_found.pop(0)
+                citation_groups = citation.groups()
+                
+                # Handle grouped citations [1, 3, 5, 7]
+                if citation_groups[2] is not None:
+                    # This is a grouped citation
+                    grouped_values = [int(val.strip()) for val in citation_groups[2].split(',')]
+                    start, end = citation.span()
+                    
+                    # Replace the grouped citation with individual citations
+                    replacement = ""
+                    for i, value in enumerate(grouped_values):
+                        if not (1 <= value <= self.max_citation_num):
+                            continue
+                            
+                        context_llm_doc = self.context_docs[value - 1]
+                        final_citation_num = self.final_order_mapping[
+                            context_llm_doc.document_id
+                        ]
+                        
+                        if final_citation_num not in self.citation_order:
+                            self.citation_order.append(final_citation_num)
+                            
+                        citation_order_idx = self.citation_order.index(final_citation_num) + 1
+                        
+                        # Get the value that was displayed to user
+                        if context_llm_doc.document_id in self.display_order_mapping:
+                            displayed_citation_num = self.display_order_mapping[
+                                context_llm_doc.document_id
+                            ]
+                        else:
+                            displayed_citation_num = final_citation_num
+                            logger.warning(
+                                f"Doc {context_llm_doc.document_id} not in display_doc_order_dict. Used LLM citation number instead."
+                            )
+                            
+                        self.past_cite_count = len(self.llm_out)
+                        self.current_citations.append(final_citation_num)
+                        
+                        if citation_order_idx not in self.cited_inds:
+                            self.cited_inds.add(citation_order_idx)
+                            yield CitationInfo(
+                                citation_num=displayed_citation_num,
+                                document_id=context_llm_doc.document_id,
+                            )
+                            
+                        link = context_llm_doc.link
+                        if link:
+                            replacement += f"[[{displayed_citation_num}]]({link})"
+                        else:
+                            replacement += f"[[{displayed_citation_num}]]()"
+                    
+                    # Replace the original grouped citation with individual citations
+                    prev_length = len(self.curr_segment)
+                    self.curr_segment = (
+                        self.curr_segment[: start + length_to_add]
+                        + replacement
+                        + self.curr_segment[end + length_to_add :]
+                    )
+                    length_to_add += len(self.curr_segment) - prev_length
+                    
+                    last_citation_end = start + length_to_add + len(replacement)
+                    continue
+                
+                # Regular single citation handling as before
                 numerical_value = int(
-                    next(group for group in citation.groups() if group is not None)
+                    next(group for group in citation_groups if group is not None)
                 )
 
                 if not (1 <= numerical_value <= self.max_citation_num):

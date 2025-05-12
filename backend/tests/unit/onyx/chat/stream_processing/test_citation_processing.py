@@ -418,6 +418,39 @@ def process_text(
             "... to receive access [[1]](https://0.com).",
             ["doc_0"],
         ),
+        # New test case for grouped citations
+        (
+            "Grouped citations [1, 3, 5, 7]",
+            [
+                "I am designed for self-hosted deployment, and at Sportradar, I am deployed on AWS [",
+                "1, 3, 5, 7",
+                "].",
+            ],
+            "I am designed for self-hosted deployment, and at Sportradar, I am deployed on AWS [[1]](https://0.com)[[2]]()[[3]](https://2.com)[[4]]().",
+            ["doc_0", "doc_1", "doc_2", "doc_3"],
+        ),
+        # Test case with spaces in grouped citations
+        (
+            "Grouped citations with spaces [1, 3, 5, 7]",
+            [
+                "I am designed for self-hosted deployment, and at Sportradar, I am deployed on AWS [",
+                "1,  3,   5,    7",
+                "].",
+            ],
+            "I am designed for self-hosted deployment, and at Sportradar, I am deployed on AWS [[1]](https://0.com)[[2]]()[[3]](https://2.com)[[4]]().",
+            ["doc_0", "doc_1", "doc_2", "doc_3"],
+        ),
+        # Test case with grouped citations handled as a single token
+        (
+            "Grouped citations as a single token",
+            [
+                "I am designed for self-hosted deployment, and at Sportradar, I am deployed on AWS ",
+                "[1, 3, 5, 7]",
+                ".",
+            ],
+            "I am designed for self-hosted deployment, and at Sportradar, I am deployed on AWS [[1]](https://0.com)[[2]]()[[3]](https://2.com)[[4]]().",
+            ["doc_0", "doc_1", "doc_2", "doc_3"],
+        ),
     ],
 )
 def test_citation_extraction(
