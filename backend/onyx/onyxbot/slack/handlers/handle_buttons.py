@@ -14,6 +14,7 @@ from onyx.chat.models import QADocsResponse
 from onyx.configs.constants import MessageType
 from onyx.configs.constants import SearchFeedbackType
 from onyx.configs.onyxbot_configs import DANSWER_FOLLOWUP_EMOJI
+from onyx.configs.onyxbot_configs import DANSWER_BOT_RESOLVED_EMOJI
 from onyx.connectors.slack.utils import expert_info_from_slack_id
 from onyx.context.search.models import SavedSearchDoc
 from onyx.db.chat import get_chat_message
@@ -551,6 +552,16 @@ def handle_followup_resolved_button(
         remove=True,
         client=client.web_client,
     )
+    
+    # Add white_check_mark emoji reaction when "I'm all set" button is clicked
+    if immediate:
+        update_emote_react(
+            emoji=DANSWER_BOT_RESOLVED_EMOJI,
+            channel=channel_id,
+            message_ts=thread_ts,
+            remove=False,
+            client=client.web_client,
+        )
 
     # Delete the message with the option to mark resolved
     if not immediate:

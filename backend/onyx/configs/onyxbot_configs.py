@@ -18,6 +18,8 @@ DANSWER_BOT_DISABLE_DOCS_ONLY_ANSWER = os.environ.get(
 DANSWER_REACT_EMOJI = os.environ.get("DANSWER_REACT_EMOJI") or "eyes"
 # When User needs more help, what should the emoji be
 DANSWER_FOLLOWUP_EMOJI = os.environ.get("DANSWER_FOLLOWUP_EMOJI") or "sos"
+# when a user makes a question, as resolved
+DANSWER_BOT_RESOLVED_EMOJI = os.environ.get("DANSWER_BOT_RESOLVED_EMOJI") or "white_check_mark"
 # What kind of message should be shown when someone gives an AI answer feedback to OnyxBot
 # Defaults to Private if not provided or invalid
 # Private: Only visible to user clicking the feedback
