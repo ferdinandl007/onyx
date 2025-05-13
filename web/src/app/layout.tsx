@@ -11,7 +11,6 @@ import {
   NEXT_PUBLIC_CLOUD_ENABLED,
 } from "@/lib/constants";
 import { Metadata } from "next";
-import { buildClientUrl } from "@/lib/utilsSS";
 import { Inter } from "next/font/google";
 import {
   EnterpriseSettings,
@@ -45,21 +44,26 @@ const hankenGrotesk = Hanken_Grotesk({
 });
 
 export async function generateMetadata(): Promise<Metadata> {
-  let logoLocation = buildClientUrl("/onyx.ico");
   let enterpriseSettings: EnterpriseSettings | null = null;
   if (SERVER_SIDE_ONLY__PAID_ENTERPRISE_FEATURES_ENABLED) {
     enterpriseSettings = await (await fetchEnterpriseSettingsSS()).json();
-    logoLocation =
-      enterpriseSettings && enterpriseSettings.use_custom_logo
-        ? "/api/enterprise-settings/logo"
-        : buildClientUrl("/onyx.ico");
+    
+    if (enterpriseSettings && enterpriseSettings.use_custom_logo) {
+      return {
+        title: enterpriseSettings?.application_name || "Onyx",
+        description: "Question answering for your documents",
+        icons: {
+          icon: "/api/enterprise-settings/logo",
+        },
+      };
+    }
   }
 
   return {
     title: enterpriseSettings?.application_name || "Onyx",
     description: "Question answering for your documents",
     icons: {
-      icon: logoLocation,
+      icon: "/onyx.ico",
     },
   };
 }
@@ -93,6 +97,9 @@ export default async function RootLayout({
           name="viewport"
           content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, interactive-widget=resizes-content"
         />
+        <link rel="icon" href="/onyx.ico" type="image/x-icon" />
+        <link rel="shortcut icon" href="/onyx.ico" type="image/x-icon" />
+        
         {CUSTOM_ANALYTICS_ENABLED &&
           combinedSettings?.customAnalyticsScript && (
             <script
