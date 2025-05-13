@@ -344,22 +344,18 @@ const collections = (
               ),
               link: "/admin/settings",
             },
-            ...(enableEnterprise
-              ? [
-                  {
-                    name: (
-                      <div className="flex">
-                        <PaintingIconSkeleton
-                          className="text-text-700"
-                          size={18}
-                        />
-                        <div className="ml-1">Whitelabeling</div>
-                      </div>
-                    ),
-                    link: "/admin/whitelabeling",
-                  },
-                ]
-              : []),
+            {
+              name: (
+                <div className="flex">
+                  <PaintingIconSkeleton
+                    className="text-text-700"
+                    size={18}
+                  />
+                  <div className="ml-1">SR Compliance</div>
+                </div>
+              ),
+              link: "/admin/whitelabeling",
+            },
             ...(enableCloud
               ? [
                   {

@@ -27,6 +27,12 @@ export interface Settings {
   image_extraction_and_analysis_enabled?: boolean;
   search_time_image_analysis_enabled?: boolean;
   image_analysis_max_size_mb?: number | null;
+  
+  // Whitelabeling features
+  custom_popup_header?: string | null;
+  custom_popup_content?: string | null;
+  custom_lower_disclaimer_content?: string | null;
+  enable_consent_screen?: boolean | null;
 }
 
 export enum NotificationType {
