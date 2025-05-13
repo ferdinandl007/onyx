@@ -2,6 +2,8 @@ from sqlalchemy import and_
 from sqlalchemy import delete
 from sqlalchemy import or_
 from sqlalchemy import select
+from sqlalchemy import func
+from sqlalchemy import literal_column
 from sqlalchemy.orm import Session
 
 from onyx.configs.constants import DocumentSource
@@ -108,38 +110,130 @@ def create_or_add_document_tag_list(
 
 
 def find_tags(
-    tag_key_prefix: str | None,
-    tag_value_prefix: str | None,
-    sources: list[DocumentSource] | None,
-    limit: int | None,
     db_session: Session,
-    # if set, both tag_key_prefix and tag_value_prefix must be a match
-    require_both_to_match: bool = False,
-) -> list[Tag]:
-    query = select(Tag)
+    limit: int | None,
+    sources: list[DocumentSource] | None = None,
+    exact_tag_key: str | None = None,
+    tag_key_fuzzy_pattern: str | None = None,
+    tag_value_fuzzy_pattern: str | None = None,
+    offset: int = 0,
+    count_only: bool = False,
+) -> list[Tag] | int:
+    if count_only:
+        if exact_tag_key:
+            count_stmt = (
+                select(func.count(func.distinct(Tag.tag_value)))
+                .where(Tag.tag_key == exact_tag_key)
+            )
+            
+            if tag_value_fuzzy_pattern:
+                count_stmt = count_stmt.where(Tag.tag_value.ilike(f"{tag_value_fuzzy_pattern}%"))
+            
+            if sources:
+                count_stmt = count_stmt.where(Tag.source.in_(sources))
+                
+            result = db_session.execute(count_stmt).scalar()
+            return result or 0
+            
+        elif tag_key_fuzzy_pattern:
+            count_stmt = (
+                select(func.count(func.distinct(Tag.tag_key)))
+                .where(Tag.tag_key.ilike(f"{tag_key_fuzzy_pattern}%"))
+            )
+            
+            if sources:
+                count_stmt = count_stmt.where(Tag.source.in_(sources))
+                
+            result = db_session.execute(count_stmt).scalar()
+            return result or 0
+            
+        else:
+            count_stmt = select(func.count(func.distinct(Tag.tag_key)))
+            
+            if sources:
+                count_stmt = count_stmt.where(Tag.source.in_(sources))
+                
+            result = db_session.execute(count_stmt).scalar()
+            return result or 0
 
-    if tag_key_prefix or tag_value_prefix:
-        conditions = []
-        if tag_key_prefix:
-            conditions.append(Tag.tag_key.ilike(f"{tag_key_prefix}%"))
-        if tag_value_prefix:
-            conditions.append(Tag.tag_value.ilike(f"{tag_value_prefix}%"))
+    tags_to_return = []
 
-        final_prefix_condition = (
-            and_(*conditions) if require_both_to_match else or_(*conditions)
+    if exact_tag_key:
+        stmt = (
+            select(
+                Tag.tag_value,
+                func.min(Tag.source).label("source_val") 
+            )
+            .where(Tag.tag_key == exact_tag_key)
+            .group_by(Tag.tag_value)
+            .order_by(Tag.tag_value)
         )
-        query = query.where(final_prefix_condition)
 
-    if sources:
-        query = query.where(Tag.source.in_(sources))
+        if tag_value_fuzzy_pattern:
+            stmt = stmt.where(Tag.tag_value.ilike(f"{tag_value_fuzzy_pattern}%"))
+        
+        if sources:
+            stmt = stmt.where(Tag.source.in_(sources))
 
-    if limit:
-        query = query.limit(limit)
+        if offset:
+            stmt = stmt.offset(offset)
+            
+        if limit:
+            stmt = stmt.limit(limit)
 
-    result = db_session.execute(query)
+        results = db_session.execute(stmt).all()
+        for r_val, r_src in results:
+            tags_to_return.append(Tag(tag_key=exact_tag_key, tag_value=r_val, source=r_src))
 
-    tags = result.scalars().all()
-    return list(tags)
+    elif tag_key_fuzzy_pattern:
+        stmt = (
+            select(
+                Tag.tag_key,
+                literal_column("''").label("tag_value_val"),
+                func.min(Tag.source).label("source_val")
+            )
+            .where(Tag.tag_key.ilike(f"{tag_key_fuzzy_pattern}%"))
+            .group_by(Tag.tag_key)
+            .order_by(Tag.tag_key)
+        )
+        
+        if sources:
+            stmt = stmt.where(Tag.source.in_(sources))
+
+        if offset:
+            stmt = stmt.offset(offset)
+            
+        if limit:
+            stmt = stmt.limit(limit)
+
+        results = db_session.execute(stmt).all()
+        for r_key, _, r_src in results:
+            tags_to_return.append(Tag(tag_key=r_key, tag_value="", source=r_src))
+            
+    else:
+        stmt = (
+            select(
+                Tag.tag_key,
+                literal_column("''").label("tag_value_val"),
+                func.min(Tag.source).label("source_val")
+            )
+            .group_by(Tag.tag_key)
+            .order_by(Tag.tag_key)
+        )
+        if sources:
+            stmt = stmt.where(Tag.source.in_(sources))
+
+        if offset:
+            stmt = stmt.offset(offset)
+            
+        if limit:
+            stmt = stmt.limit(limit)
+        
+        results = db_session.execute(stmt).all()
+        for r_key, _, r_src in results:
+            tags_to_return.append(Tag(tag_key=r_key, tag_value="", source=r_src))
+            
+    return tags_to_return
 
 
 def delete_document_tags_for_documents__no_commit(

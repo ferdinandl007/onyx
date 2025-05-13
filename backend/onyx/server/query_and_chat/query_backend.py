@@ -23,7 +23,7 @@ from onyx.db.chat import get_valid_messages_from_query_sessions
 from onyx.db.chat import translate_db_message_to_chat_message_detail
 from onyx.db.chat import translate_db_search_doc_to_server_search_doc
 from onyx.db.engine import get_session
-from onyx.db.models import User
+from onyx.db.models import Tag, User
 from onyx.db.search_settings import get_current_search_settings
 from onyx.db.tag import find_tags
 from onyx.document_index.factory import get_default_document_index
@@ -91,41 +91,74 @@ def get_tags(
     match_pattern: str | None = None,
     # If this is empty or None, then tags for all sources are considered
     sources: list[DocumentSource] | None = None,
-    allow_prefix: bool = True,  # This is currently the only option
-    limit: int = 50,
+    allow_prefix: bool = True,  # Kept for backward compatibility
+    limit: int = 100,  # Reduced to reasonable page size
+    offset: int = 0,  # Starting point for pagination
     _: User = Depends(current_user),
     db_session: Session = Depends(get_session),
 ) -> TagResponse:
-    if not allow_prefix:
-        raise NotImplementedError("Cannot disable prefix match for now")
-
-    key_prefix = match_pattern
-    value_prefix = match_pattern
-    require_both_to_match = False
-
-    # split on = to allow the user to type in "author=bob"
+    db_tags_result: list[Tag] = []
     EQUAL_PAT = "="
-    if match_pattern and EQUAL_PAT in match_pattern:
-        split_pattern = match_pattern.split(EQUAL_PAT)
-        key_prefix = split_pattern[0]
-        value_prefix = EQUAL_PAT.join(split_pattern[1:])
-        require_both_to_match = True
 
-    db_tags = find_tags(
-        tag_key_prefix=key_prefix,
-        tag_value_prefix=value_prefix,
-        sources=sources,
-        limit=limit,
+    exact_key_filter: str | None = None
+    key_fuzzy_pattern: str | None = None
+    value_fuzzy_pattern: str | None = None
+
+    if match_pattern:
+        if EQUAL_PAT in match_pattern:
+            parts = match_pattern.split(EQUAL_PAT, 1)
+            exact_key_filter = parts[0]
+            # If there's something after "=", use it as value_fuzzy_filter
+            if len(parts) > 1 and parts[1]: 
+                value_fuzzy_pattern = parts[1]
+        else:
+            # No "=" in match_pattern, so fuzzy search on keys.
+            key_fuzzy_pattern = match_pattern
+
+    db_tags_result = find_tags(
         db_session=db_session,
-        require_both_to_match=require_both_to_match,
+        limit=limit,
+        offset=offset,  # Pass the offset parameter to find_tags
+        sources=sources,
+        exact_tag_key=exact_key_filter,
+        tag_key_fuzzy_pattern=key_fuzzy_pattern,
+        tag_value_fuzzy_pattern=value_fuzzy_pattern,
     )
+
+    # Get total count for this query (without pagination) if on first page
+    total_count = None
+    if offset == 0:
+        # For first page, get an estimate of total results
+        total_count_result = find_tags(
+            db_session=db_session,
+            limit=None,  # Still need to pass limit for function signature
+            count_only=True,  # Just get the count
+            sources=sources,
+            exact_tag_key=exact_key_filter,
+            tag_key_fuzzy_pattern=key_fuzzy_pattern,
+            tag_value_fuzzy_pattern=value_fuzzy_pattern,
+        )
+        total_count = total_count_result
+
     server_tags = [
         SourceTag(
-            tag_key=db_tag.tag_key, tag_value=db_tag.tag_value, source=db_tag.source
+            tag_key=db_tag.tag_key,
+            tag_value=db_tag.tag_value if db_tag.tag_value is not None else "",
+            source=db_tag.source
         )
-        for db_tag in db_tags
+        for db_tag in db_tags_result
     ]
-    return TagResponse(tags=server_tags)
+    
+    # Return pagination metadata along with tags
+    return TagResponse(
+        tags=server_tags,
+        pagination={
+            "total": total_count,
+            "offset": offset,
+            "limit": limit,
+            "has_more": len(server_tags) == limit  # If we got a full page, there's likely more
+        }
+    )
 
 
 @basic_router.get("/user-searches")

@@ -29,12 +29,15 @@ if TYPE_CHECKING:
     pass
 
 
-class SourceTag(Tag):
+class SourceTag(BaseModel):
+    tag_key: str
+    tag_value: str
     source: DocumentSource
 
 
 class TagResponse(BaseModel):
     tags: list[SourceTag]
+    pagination: dict | None = None
 
 
 class UpdateChatSessionThreadRequest(BaseModel):
