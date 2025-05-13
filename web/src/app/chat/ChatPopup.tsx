@@ -22,22 +22,29 @@ export function ChatPopup() {
 
   const settings = useContext(SettingsContext);
   const enterpriseSettings = settings?.enterpriseSettings;
-  const isConsentScreen = enterpriseSettings?.enable_consent_screen;
-  if (
-    (!enterpriseSettings?.custom_popup_content && !isConsentScreen) ||
-    completedFlow
-  ) {
+  
+  // Check for popup content in both enterprise settings and regular settings
+  const customPopupContent = 
+    enterpriseSettings?.custom_popup_content || 
+    settings?.settings.custom_popup_content;
+  
+  const isConsentScreen = 
+    enterpriseSettings?.enable_consent_screen || 
+    settings?.settings.enable_consent_screen;
+  
+  if ((!customPopupContent && !isConsentScreen) || completedFlow) {
     return null;
   }
 
   const popupTitle =
     enterpriseSettings?.custom_popup_header ||
+    settings?.settings.custom_popup_header ||
     (isConsentScreen
       ? "Terms of Use"
       : `Welcome to ${enterpriseSettings?.application_name || "Onyx"}!`);
 
   const popupContent =
-    enterpriseSettings?.custom_popup_content ||
+    customPopupContent ||
     (isConsentScreen
       ? "By clicking 'I Agree', you acknowledge that you agree to the terms of use of this application and consent to proceed."
       : "");

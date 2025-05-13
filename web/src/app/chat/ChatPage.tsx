@@ -3350,13 +3350,14 @@ export function ChatPage({
                               handleFileUpload={handleImageUpload}
                               textAreaRef={textAreaRef}
                             />
-                            {enterpriseSettings &&
-                              enterpriseSettings.custom_lower_disclaimer_content && (
-                                <div className="mobile:hidden mt-4 flex items-center justify-center relative w-[95%] mx-auto">
-                                  <div className="text-sm text-text-500 max-w-searchbar-max px-4 text-center">
+                            {(enterpriseSettings?.custom_lower_disclaimer_content || 
+                              settings?.settings.custom_lower_disclaimer_content) && (
+                                <div className="mobile:hidden mt-2 flex items-center justify-center relative w-[95%] mx-auto">
+                                  <div className="text-xs text-text-500/70 max-w-searchbar-max px-4 text-center">
                                     <MinimalMarkdown
                                       content={
-                                        enterpriseSettings.custom_lower_disclaimer_content
+                                        enterpriseSettings?.custom_lower_disclaimer_content || 
+                                        (settings?.settings?.custom_lower_disclaimer_content || "")
                                       }
                                     />
                                   </div>
