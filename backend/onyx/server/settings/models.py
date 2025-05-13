@@ -58,6 +58,12 @@ class Settings(BaseModel):
     image_extraction_and_analysis_enabled: bool | None = False
     search_time_image_analysis_enabled: bool | None = False
     image_analysis_max_size_mb: int | None = 20
+    
+    # SR Whitelabeling features
+    custom_popup_header: str | None = None
+    custom_popup_content: str | None = None
+    custom_lower_disclaimer_content: str | None = None
+    enable_consent_screen: bool | None = False
 
 
 class UserSettings(Settings):
