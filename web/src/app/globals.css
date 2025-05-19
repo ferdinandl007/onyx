@@ -343,10 +343,10 @@
     --scrollbar-dark-thumb-hover: #909090;
 
     /* Agent references */
-    --agent-sidebar: #be5d0e; /* You can keep or lighten/darken if desired */
-    --agent-hovered: #f07c13;
-    --agent: #e47011;
-    --lighter-agent: #f59e0b;
+    --agent-sidebar: #be0e0e; /* You can keep or lighten/darken if desired */
+    --agent-hovered: #f01313;
+    --agent: #e41111;
+    --lighter-agent: #f50b0b;
   }
 }
 
@@ -677,4 +677,332 @@ ul > li > p {
 
 .container {
   margin-bottom: 1rem;
+}
+
+/* Search animations for Deep Research button */
+@keyframes pulse-subtle {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes search-line-animation {
+  0% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes glow-subtle {
+  0% {
+    filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.7));
+  }
+  50% {
+    filter: drop-shadow(0 0 2px rgba(255, 255, 255, 1));
+  }
+  100% {
+    filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.7));
+  }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 1.5s ease-in-out infinite;
+}
+
+.animate-search-line {
+  animation: search-line-animation 2s ease-in-out infinite;
+}
+
+.animate-glow-subtle {
+  animation: glow-subtle 2s ease-in-out infinite;
+}
+
+/* Telescope 3D animations */
+.telescope-container {
+  perspective: 100px;
+  transform-style: preserve-3d;
+}
+
+.telescope-active {
+  animation: telescope-look 4s ease-in-out infinite;
+  filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.7));
+}
+
+.telescope-inactive {
+  transition: all 0.3s ease;
+}
+
+.telescope-button-active {
+  position: relative;
+  overflow: hidden;
+}
+
+.telescope-button-active::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%);
+  opacity: 0;
+  animation: pulse-radial 3s ease-in-out infinite;
+}
+
+/* Starfield animations */
+.star-1 {
+  top: -5px;
+  left: 15px;
+  opacity: 0;
+  animation: twinkle 3s ease-in-out infinite;
+  animation-delay: 0.1s;
+}
+
+.star-2 {
+  top: 5px;
+  right: -5px;
+  opacity: 0;
+  animation: twinkle 2.5s ease-in-out infinite;
+  animation-delay: 0.5s;
+}
+
+.star-3 {
+  bottom: -3px;
+  left: 5px;
+  opacity: 0;
+  animation: twinkle 3.2s ease-in-out infinite;
+  animation-delay: 1.2s;
+}
+
+.star-4 {
+  bottom: 2px;
+  right: 10px;
+  opacity: 0;
+  animation: twinkle 2.8s ease-in-out infinite;
+  animation-delay: 0.7s;
+}
+
+.star-5 {
+  top: 10px;
+  left: -2px;
+  opacity: 0;
+  animation: twinkle 3.5s ease-in-out infinite;
+  animation-delay: 1.5s;
+}
+
+.lens-effect {
+  width: 8px;
+  height: 8px;
+  background: radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 70%);
+  opacity: 0;
+  top: 7px;
+  right: 4px;
+  animation: lens-glow 3s ease-in-out infinite;
+}
+
+/* Keyframe definitions */
+@keyframes telescope-look {
+  0% {
+    transform: rotateX(0deg) rotateY(0deg);
+  }
+  25% {
+    transform: rotateX(5deg) rotateY(5deg);
+  }
+  50% {
+    transform: rotateX(-3deg) rotateY(2deg);
+  }
+  75% {
+    transform: rotateX(2deg) rotateY(-3deg);
+  }
+  100% {
+    transform: rotateX(0deg) rotateY(0deg);
+  }
+}
+
+@keyframes twinkle {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+
+@keyframes lens-glow {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+
+@keyframes pulse-radial {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+
+/* Simpler Research Icon Animation */
+.research-icon-container {
+  position: relative;
+}
+
+.research-button-active {
+  position: relative;
+  overflow: hidden;
+  animation: button-pulse 2s ease-in-out infinite;
+  box-shadow: 0 0 5px rgba(255, 130, 100, 0.5);
+}
+
+.research-button-active::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 70%);
+  opacity: 0;
+  animation: pulse-radial 2s ease-in-out infinite;
+}
+
+.research-icon-active {
+  animation: icon-pulse 1.5s ease-in-out infinite;
+  filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.9));
+  transform-origin: center;
+}
+
+.mini-star-1 {
+  top: -3px;
+  right: -3px;
+  opacity: 0;
+  animation: mini-twinkle 2s ease-in-out infinite;
+  animation-delay: 0.1s;
+}
+
+.mini-star-2 {
+  top: 8px;
+  left: -2px;
+  opacity: 0;
+  animation: mini-twinkle 1.7s ease-in-out infinite;
+  animation-delay: 0.7s;
+}
+
+.mini-star-3 {
+  bottom: -3px;
+  right: -1px;
+  opacity: 0;
+  animation: mini-twinkle 1.5s ease-in-out infinite;
+  animation-delay: 0.3s;
+}
+
+@keyframes button-pulse {
+  0% {
+    box-shadow: 0 0 4px rgba(255, 130, 100, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 8px rgba(255, 130, 100, 0.7);
+  }
+  100% {
+    box-shadow: 0 0 4px rgba(255, 130, 100, 0.4);
+  }
+}
+
+@keyframes icon-pulse {
+  0% {
+    transform: scale(1) rotate(0deg);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(1.1) rotate(5deg);
+    opacity: 1;
+    filter: drop-shadow(0 0 3px rgba(255, 255, 255, 1));
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 0.9;
+  }
+}
+
+@keyframes mini-twinkle {
+  0% {
+    opacity: 0;
+    transform: scale(0.8) translate(0, 0);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2) translate(-2px, -1px);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.8) translate(-4px, -2px);
+  }
+}
+
+/* Research button animations */
+.deep-button-active {
+  box-shadow: 0 0 0 rgba(228, 112, 17, 0.4);
+  animation: deep-pulse 2s infinite;
+}
+
+@keyframes deep-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(228, 112, 17, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(228, 112, 17, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(228, 112, 17, 0);
+  }
+}
+
+.research-enhance {
+  animation: enhance-pulse 2s ease-in-out infinite;
+}
+
+@keyframes enhance-pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+    filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.7));
+  }
+  100% {
+    transform: scale(1);
+  }
 }
