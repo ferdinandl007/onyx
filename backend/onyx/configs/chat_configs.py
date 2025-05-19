@@ -72,7 +72,7 @@ NUM_PERSONA_PROMPT_GENERATION_CHUNKS = 5
 
 GEMINI_THINKING_BUDGET_TOKENS = os.environ.get("GEMINI_THINKING_BUDGET_TOKENS", "1000")
 GEMINI_THINKING_ENABLED = os.environ.get("GEMINI_THINKING_ENABLED", False)
-GEMINI_THINKING_MODEL_NAME = os.environ.get("GEMINI_THINKING_MODEL_NAME", "gemini-2.5")
+GEMINI_THINKING_MODEL_NAME = os.environ.get("GEMINI_THINKING_MODEL_NAME", "gemini-2.5-flash")
 # Agentic search takes significantly more tokens and therefore has much higher cost.
 # This configuration allows users to get a search-only experience with instant results
 # and no involvement from the LLM.

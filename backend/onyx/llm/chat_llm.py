@@ -52,6 +52,7 @@ logger = setup_logger()
 # parameters like frequency and presence, just ignore them
 litellm.drop_params = True
 litellm.telemetry = False
+litellm.modify_params = True  # Enable automatic parameter modification for Bedrock tool calling
 
 _LLM_PROMPT_LONG_TERM_LOG_CATEGORY = "llm_prompt"
 VERTEX_CREDENTIALS_KWARG = "vertex_credentials"
