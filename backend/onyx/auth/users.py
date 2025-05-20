@@ -306,7 +306,6 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
                         db_session, User, OAuthAccount
                     )
                     self.user_db = tenant_user_db
-                    self.database = tenant_user_db  # is this even a real var?
 
                 if hasattr(user_create, "role"):
                     user_create.role = UserRole.BASIC
@@ -426,7 +425,6 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
 
                 # Point user manager at the session-bound DB instance
                 self.user_db = tenant_user_db
-                self.database = tenant_user_db
 
                 oauth_account_dict = {
                     "oauth_name": oauth_name,
