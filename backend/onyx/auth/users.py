@@ -389,6 +389,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         *,
         associate_by_email: bool = False,
         is_verified_by_default: bool = False,
+        db_session: Optional[AsyncSession] = None,
     ) -> User:
         referral_source = (
             getattr(request.state, "referral_source", None) if request else None
@@ -407,119 +408,124 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         if not tenant_id:
             raise HTTPException(status_code=401, detail="User not found")
 
-        # Proceed with the tenant context
-        token = None
-        async with get_async_session_context_manager(tenant_id) as db_session:
+        async def _inner(session: AsyncSession) -> User:  # noqa: WPS430
             token = CURRENT_TENANT_ID_CONTEXTVAR.set(tenant_id)
+            
+            try:
+                verify_email_in_whitelist(account_email, tenant_id)
+                verify_email_domain(account_email)
 
-            verify_email_in_whitelist(account_email, tenant_id)
-            verify_email_domain(account_email)
+                if MULTI_TENANT:
+                    tenant_user_db = SQLAlchemyUserAdminDB[User, uuid.UUID](
+                        session, User, OAuthAccount
+                    )
+                else:
+                    tenant_user_db = SQLAlchemyUserAdminDB[User, uuid.UUID](
+                        session, User, OAuthAccount
+                    )
 
-            if MULTI_TENANT:
-                tenant_user_db = SQLAlchemyUserAdminDB[User, uuid.UUID](
-                    db_session, User, OAuthAccount
-                )
+                # Point user manager at the session-bound DB instance
                 self.user_db = tenant_user_db
                 self.database = tenant_user_db
 
-            oauth_account_dict = {
-                "oauth_name": oauth_name,
-                "access_token": access_token,
-                "account_id": account_id,
-                "account_email": account_email,
-                "expires_at": expires_at,
-                "refresh_token": refresh_token,
-            }
+                oauth_account_dict = {
+                    "oauth_name": oauth_name,
+                    "access_token": access_token,
+                    "account_id": account_id,
+                    "account_email": account_email,
+                    "expires_at": expires_at,
+                    "refresh_token": refresh_token,
+                }
 
-            user: User | None = None
+                user: User | None = None
 
-            try:
-                # Attempt to get user by OAuth account
-                user = await self.get_by_oauth_account(oauth_name, account_id)
-
-            except exceptions.UserNotExists:
                 try:
-                    # Attempt to get user by email
-                    user = await self.user_db.get_by_email(account_email)
-                    if not associate_by_email:
-                        raise exceptions.UserAlreadyExists()
-
-                    # Make sure user is not None before adding OAuth account
-                    if user is not None:
-                        user = await self.user_db.add_oauth_account(
-                            user, oauth_account_dict
-                        )
-                    else:
-                        # This shouldn't happen since get_by_email would raise UserNotExists
-                        # but adding as a safeguard
-                        raise exceptions.UserNotExists()
+                    # Attempt to get user by OAuth account
+                    user = await self.get_by_oauth_account(oauth_name, account_id)
 
                 except exceptions.UserNotExists:
-                    password = self.password_helper.generate()
-                    user_dict = {
-                        "email": account_email,
-                        "hashed_password": self.password_helper.hash(password),
-                        "is_verified": is_verified_by_default,
-                    }
+                    try:
+                        # Attempt to get user by email
+                        user = await self.user_db.get_by_email(account_email)
+                        if not associate_by_email:
+                            raise exceptions.UserAlreadyExists()
 
-                    user = await self.user_db.create(user_dict)
-                    await self.user_db.add_oauth_account(user, oauth_account_dict)
-                    await self.on_after_register(user, request)
-
-            else:
-                # User exists, update OAuth account if needed
-                if user is not None:  # Add explicit check
-                    for existing_oauth_account in user.oauth_accounts:
-                        if (
-                            existing_oauth_account.account_id == account_id
-                            and existing_oauth_account.oauth_name == oauth_name
-                        ):
-                            user = await self.user_db.update_oauth_account(
-                                user,
-                                # NOTE: OAuthAccount DOES implement the OAuthAccountProtocol
-                                # but the type checker doesn't know that :(
-                                existing_oauth_account,  # type: ignore
-                                oauth_account_dict,
+                        # Make sure user is not None before adding OAuth account
+                        if user is not None:
+                            user = await self.user_db.add_oauth_account(
+                                user, oauth_account_dict
                             )
+                        else:
+                            # Safeguard (shouldn't happen)
+                            raise exceptions.UserNotExists()
 
-            # NOTE: Most IdPs have very short expiry times, and we don't want to force the user to
-            # re-authenticate that frequently, so by default this is disabled
-            if expires_at and TRACK_EXTERNAL_IDP_EXPIRY:
-                oidc_expiry = datetime.fromtimestamp(expires_at, tz=timezone.utc)
-                await self.user_db.update(
-                    user, update_dict={"oidc_expiry": oidc_expiry}
-                )
+                    except exceptions.UserNotExists:
+                        password = self.password_helper.generate()
+                        user_dict = {
+                            "email": account_email,
+                            "hashed_password": self.password_helper.hash(password),
+                            "is_verified": is_verified_by_default,
+                        }
 
-            # Handle case where user has used product outside of web and is now creating an account through web
-            if not user.role.is_web_login():
-                # We must use the existing user in the session if it matches
-                # the user we just got by email/oauth
-                if user.id:
-                    user_by_session = await db_session.get(User, user.id)
-                    if user_by_session:
-                        user = user_by_session
+                        user = await self.user_db.create(user_dict)
+                        await self.user_db.add_oauth_account(user, oauth_account_dict)
+                        await self.on_after_register(user, request)
 
-                await self.user_db.update(
-                    user,
-                    {
-                        "is_verified": is_verified_by_default,
-                        "role": UserRole.BASIC,
-                    },
-                )
+                else:
+                    # User exists, update OAuth account if needed
+                    if user is not None:
+                        for existing_oauth_account in user.oauth_accounts:
+                            if (
+                                existing_oauth_account.account_id == account_id
+                                and existing_oauth_account.oauth_name == oauth_name
+                            ):
+                                user = await self.user_db.update_oauth_account(
+                                    user,
+                                    existing_oauth_account,  # type: ignore
+                                    oauth_account_dict,
+                                )
 
-            # this is needed if an organization goes from `TRACK_EXTERNAL_IDP_EXPIRY=true` to `false`
-            # otherwise, the oidc expiry will always be old, and the user will never be able to login
-            if (
-                user.oidc_expiry is not None  # type: ignore
-                and not TRACK_EXTERNAL_IDP_EXPIRY
-            ):
-                await self.user_db.update(user, {"oidc_expiry": None})
-                user.oidc_expiry = None  # type: ignore
+                # Track external expiry if configured
+                if expires_at and TRACK_EXTERNAL_IDP_EXPIRY:
+                    oidc_expiry = datetime.fromtimestamp(expires_at, tz=timezone.utc)
+                    await self.user_db.update(
+                        user, update_dict={"oidc_expiry": oidc_expiry}
+                    )
 
-            if token:
+                # Handle web-login restrictions
+                if not user.role.is_web_login():
+                    if user.id:
+                        user_by_session = await session.get(User, user.id)
+                        if user_by_session:
+                            user = user_by_session
+
+                    await self.user_db.update(
+                        user,
+                        {
+                            "is_verified": is_verified_by_default,
+                            "role": UserRole.BASIC,
+                        },
+                    )
+
+                # Clean up old OIDC expiry when no longer tracked
+                if (
+                    user.oidc_expiry is not None  # type: ignore
+                    and not TRACK_EXTERNAL_IDP_EXPIRY
+                ):
+                    await self.user_db.update(user, {"oidc_expiry": None})
+                    user.oidc_expiry = None  # type: ignore
+
+                return user
+
+            finally:
                 CURRENT_TENANT_ID_CONTEXTVAR.reset(token)
 
-            return user
+        # Choose session strategy
+        if db_session is not None:
+            return await _inner(db_session)
+
+        async with get_async_session_context_manager(tenant_id) as _session:
+            return await _inner(_session)
 
     async def on_after_login(
         self,
@@ -1299,6 +1305,7 @@ def get_oauth_router(
         ),
         user_manager: BaseUserManager[models.UP, models.ID] = Depends(get_user_manager),
         strategy: Strategy[models.UP, models.ID] = Depends(backend.get_strategy),
+        db_session: AsyncSession = Depends(get_async_session),
     ) -> RedirectResponse:
         try:
             logger.info(f"OAuth callback received for: {oauth_client.name}")
@@ -1364,6 +1371,7 @@ def get_oauth_router(
                     request,
                     associate_by_email=associate_by_email,
                     is_verified_by_default=is_verified_by_default,
+                    db_session=db_session,
                 )
                 logger.info(f"User {user.id} authenticated via {oauth_client.name}")
             except UserAlreadyExists:
