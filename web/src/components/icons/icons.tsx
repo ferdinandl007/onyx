@@ -36,6 +36,9 @@ import { StaticImageData } from "next/image";
 import jiraSVG from "../../../public/Jira.svg";
 import confluenceSVG from "../../../public/Confluence.svg";
 import deepseekSVG from "../../../public/Deepseek.svg";
+import xaiSVG from "../../../public/XAI_Logo.svg";
+import qwenSVG from "../../../public/qwen-square.svg";
+import perplexitySVG from "../../../public/perplexity-ai-icon.png";
 import openAISVG from "../../../public/Openai.svg";
 import amazonSVG from "../../../public/Amazon.svg";
 import geminiSVG from "../../../public/Gemini.svg";
@@ -1148,6 +1151,27 @@ export const DeepseekIcon = ({
   className = defaultTailwindCSS,
 }: IconProps) => (
   <LogoIcon size={size} className={className} src={deepseekSVG} />
+);
+
+export const XAIIcon = ({
+  size = 16,
+  className = defaultTailwindCSS,
+}: IconProps) => (
+  <LogoIcon size={size} className={`${className} dark:invert dark:brightness-200`} src={xaiSVG} />
+);
+
+export const QwenIcon = ({
+  size = 16,
+  className = defaultTailwindCSS,
+}: IconProps) => (
+  <LogoIcon size={size} className={className} src={qwenSVG} />
+);
+
+export const PerplexityIcon = ({
+  size = 16,
+  className = defaultTailwindCSS,
+}: IconProps) => (
+  <LogoIcon size={size} className={`${className} dark:invert dark:brightness-200`} src={perplexitySVG} />
 );
 
 export const MicrosoftIconSVG = ({
