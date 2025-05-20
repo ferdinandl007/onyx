@@ -3,7 +3,7 @@ import { Modal } from "@/components/Modal";
 import { getDisplayNameForModel, LlmDescriptor } from "@/lib/hooks";
 import { LLMProviderDescriptor } from "@/app/admin/configuration/llm/interfaces";
 
-import { destructureValue, structureValue } from "@/lib/llm/utils";
+import { parseLlmDescriptor, structureValue } from "@/lib/llm/utils";
 import { setUserDefaultModel } from "@/lib/users/UserSettings";
 import { usePathname, useRouter } from "next/navigation";
 import { PopupSpec } from "@/components/admin/connectors/Popup";
@@ -100,7 +100,7 @@ export function UserSettingsModal({
   }, [onClose]);
 
   const defaultModelDestructured = defaultModel
-    ? destructureValue(defaultModel)
+    ? parseLlmDescriptor(defaultModel)
     : null;
   const modelOptionsByProvider = new Map<
     string,
@@ -129,14 +129,17 @@ export function UserSettingsModal({
     llmProvider.model_configurations.forEach((modelConfiguration) => {
       if (!uniqueModelNames.has(modelConfiguration.name)) {
         uniqueModelNames.add(modelConfiguration.name);
-        llmOptionsByProvider[llmProvider.provider].push({
-          name: modelConfiguration.name,
-          value: structureValue(
-            llmProvider.name,
-            llmProvider.provider,
-            modelConfiguration.name
-          ),
-        });
+        const llmOptions = llmOptionsByProvider[llmProvider.provider];
+        if (llmOptions) {
+          llmOptions.push({
+            name: modelConfiguration.name,
+            value: structureValue(
+              llmProvider.name,
+              llmProvider.provider,
+              modelConfiguration.name
+            ),
+          });
+        }
       }
     });
   });
@@ -147,7 +150,7 @@ export function UserSettingsModal({
 
       if (response.ok) {
         if (defaultModel && setCurrentLlm) {
-          setCurrentLlm(destructureValue(defaultModel));
+          setCurrentLlm(parseLlmDescriptor(defaultModel));
         }
         setPopup({
           message: "Default model updated successfully",
@@ -365,9 +368,9 @@ export function UserSettingsModal({
                     currentLlm={
                       defaultModel
                         ? structureValue(
-                            destructureValue(defaultModel).provider,
+                            parseLlmDescriptor(defaultModel).provider,
                             "",
-                            destructureValue(defaultModel).modelName
+                            parseLlmDescriptor(defaultModel).modelName
                           )
                         : null
                     }
@@ -377,7 +380,7 @@ export function UserSettingsModal({
                         handleChangedefaultModel(null);
                       } else {
                         const { modelName, provider, name } =
-                          destructureValue(selected);
+                          parseLlmDescriptor(selected);
                         if (modelName && name) {
                           handleChangedefaultModel(
                             structureValue(provider, "", modelName)
