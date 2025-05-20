@@ -9,7 +9,9 @@ import {
   IconProps,
   DeepseekIcon,
   OpenAISVG,
+  XAIIcon,
   QwenIcon,
+  PerplexityIcon,
 } from "@/components/icons/icons";
 
 export const getProviderIcon = (
@@ -33,8 +35,11 @@ export const getProviderIcon = (
     microsoft: MicrosoftIconSVG,
     meta: MetaIcon,
     google: GeminiIcon,
+    xai: XAIIcon,
+    grok: XAIIcon,
     qwen: QwenIcon,
     qwq: QwenIcon,
+    perplexity: PerplexityIcon,
   };
 
   // First check if provider name directly matches an icon

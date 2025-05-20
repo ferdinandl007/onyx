@@ -10,6 +10,7 @@ import { ChatBanner } from "@/app/chat/ChatBanner";
 import LogoWithText from "../header/LogoWithText";
 import { NewChatIcon } from "../icons/icons";
 import { SettingsContext } from "../settings/SettingsProvider";
+import { SportradarLogo } from "../logo/SportradarLogo";
 
 export default function FunctionalHeader({
   page,
@@ -35,6 +36,17 @@ export default function FunctionalHeader({
   documentSidebarVisible?: boolean;
 }) {
   const settings = useContext(SettingsContext);
+
+  // Define the sophisticated left positioning class based on sidebar states
+  const leftPositionClass = 
+    documentSidebarVisible && sidebarToggled
+      ? "left-[calc(50%-75px)]"
+      : documentSidebarVisible && !sidebarToggled
+      ? "left-[calc(50%-175px)]"
+      : !documentSidebarVisible && sidebarToggled
+      ? "left-[calc(50%+100px)]"
+      : "left-1/2";
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.metaKey || event.ctrlKey) {
@@ -98,36 +110,35 @@ export default function FunctionalHeader({
             ${sidebarToggled ? "w-[250px]" : "w-[0px]"}
             `}
           />
+          
+          {/* Sportradar logo in the center */}
+          <div
+            className={`
+              absolute z-30
+              ${leftPositionClass} /* Apply sophisticated centering */
+              transform -translate-x-1/2 /* Center element on the calculated left point */
+              transition-all duration-300 ease-in-out /* Added for smooth animation */
+            `}
+            style={{ top: "2px" }} /* Position logo near the top of the header bar */
+          >
+            <SportradarLogo height={60} width={200} />
+          </div>
+          
           {page == "chat" && (
             <div
               className={`
-            absolute
-            ${
-              documentSidebarVisible &&
-              sidebarToggled &&
-              "left-[calc(50%-75px)]"
-            }
-            ${
-              documentSidebarVisible && !sidebarToggled
-                ? "left-[calc(50%-175px)]"
-                : !documentSidebarVisible && sidebarToggled
-                  ? "left-[calc(50%+100px)]"
-                  : "left-1/2"
-            }
-            ${
-              documentSidebarVisible || sidebarToggled
-                ? "mobile:w-[40vw] max-w-[40vw]"
-                : "mobile:w-[50vw] max-w-[60vw]"
-            }
-            ${
-              settings?.enterpriseSettings?.two_lines_for_chat_header
-                ? "top-0"
-                : "top-1"
-            }
-            h-8
-            -translate-x-1/2
-            transition-all duration-300
-          `}
+                absolute
+                ${leftPositionClass} /* Apply sophisticated centering */
+                ${ /* Keep original width classes for ChatBanner */
+                  documentSidebarVisible || sidebarToggled
+                    ? "mobile:w-[40vw] max-w-[40vw]"
+                    : "mobile:w-[50vw] max-w-[60vw]"
+                }
+                transform -translate-x-1/2 /* Center element on the calculated left point */
+                transition-all duration-300
+                h-8 /* Original height for ChatBanner container */
+              `}
+              style={{ top: "36px" }} /* Position ChatBanner below the logo */
             >
               <ChatBanner />
             </div>
