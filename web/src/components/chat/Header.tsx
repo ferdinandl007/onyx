@@ -119,10 +119,12 @@ export default function FunctionalHeader({
               transform -translate-x-1/2 /* Center element on the calculated left point */
               transition-all duration-300 ease-in-out /* Added for smooth animation */
             `}
-            style={{ top: "2px" }} /* Position logo near the top of the header bar */
+            style={{ top: "-13px" }} /* Adjusted position for better vertical alignment */
           >
             <SportradarLogo height={60} width={200} />
           </div>
+          
+          {/* Fade effect between logo and content */}
           
           {page == "chat" && (
             <div
@@ -138,7 +140,7 @@ export default function FunctionalHeader({
                 transition-all duration-300
                 h-8 /* Original height for ChatBanner container */
               `}
-              style={{ top: "36px" }} /* Position ChatBanner below the logo */
+              style={{ top: "66px" }} /* Increased distance from logo */
             >
               <ChatBanner />
             </div>
