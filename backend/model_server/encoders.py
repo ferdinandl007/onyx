@@ -217,40 +217,47 @@ class CloudEmbedding:
         if not model:
             model = DEFAULT_VERTEX_MODEL
 
-        creds_info = json.loads(self.api_key)
-        credentials = service_account.Credentials.from_service_account_info(creds_info)
-        project_id = creds_info["project_id"]
-        client = genai.Client(
-            vertexai=True,
-            project=project_id,
-            location=VERTEXAI_EMBEDDING_MODEL_LOCATION,
-            credentials=credentials
-        )
-
-
-        is_gemini = "gemini" in model.lower()
-        batch_size = 1 if is_gemini else VERTEXAI_EMBEDDING_LOCAL_BATCH_SIZE # This batch size is now fixed by the function
-
-        def make_batches(lst, size):
-            return [lst[i:i + size] for i in range(0, len(lst), size)]
-
-        async def embed_batch(batch: list[str]) -> list[list[float]]:
-            embeddings = await client.aio.models.embed_content(
-                model=model,
-                contents=batch,
-                config=EmbedContentConfig(
-                    task_type=embedding_type,
-                    output_dimensionality=VERTEXAI_EMBEDDING_MODEL_DIMENSION
-                )
+        try:
+            creds_info = json.loads(self.api_key)
+            credentials = service_account.Credentials.from_service_account_info(
+                creds_info,
+                scopes=['https://www.googleapis.com/auth/cloud-platform']
             )
-            return embeddings.embeddings
+            project_id = creds_info["project_id"]
+            client = genai.Client(
+                vertexai=True,
+                project=project_id,
+                location=VERTEXAI_EMBEDDING_MODEL_LOCATION,
+                credentials=credentials
+            )
 
-        batches = make_batches(texts, batch_size)
-        tasks = [embed_batch(batch) for batch in batches]
-        results = await asyncio.gather(*tasks)
+            is_gemini = "gemini" in model.lower()
+            batch_size = 1 if is_gemini else VERTEXAI_EMBEDDING_LOCAL_BATCH_SIZE
 
-        # Flatten list of lists
-        return [embedding.values for batch in results for embedding in batch]
+            def make_batches(lst, size):
+                return [lst[i:i + size] for i in range(0, len(lst), size)]
+
+            async def embed_batch(batch: list[str]) -> list[list[float]]:
+                embeddings = await client.aio.models.embed_content(
+                    model=model,
+                    contents=batch,
+                    config=EmbedContentConfig(
+                        task_type=embedding_type,
+                        output_dimensionality=VERTEXAI_EMBEDDING_MODEL_DIMENSION
+                    )
+                )
+                return embeddings.embeddings
+
+            batches = make_batches(texts, batch_size)
+            tasks = [embed_batch(batch) for batch in batches]
+            results = await asyncio.gather(*tasks)
+
+            # Flatten list of lists
+            return [embedding.values for batch in results for embedding in batch]
+        except Exception as e:
+            error_msg = f"Failed to generate embeddings with Vertex AI: {e}"
+            logger.error(error_msg)
+            raise RuntimeError(error_msg) from e
 
     async def _embed_litellm_proxy(
         self, texts: list[str], model_name: str | None
