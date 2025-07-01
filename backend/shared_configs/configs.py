@@ -3,8 +3,6 @@ from typing import Any
 from typing import List
 from urllib.parse import urlparse
 
-from shared_configs.model_server_models import SupportedEmbeddingModel
-
 # Used for logging
 SLACK_CHANNEL_ID = "channel_id"
 

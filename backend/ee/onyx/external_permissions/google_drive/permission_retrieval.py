@@ -6,6 +6,7 @@ from onyx.utils.logger import setup_logger
 logger = setup_logger()
 
 
+@retry(tries=3, delay=2, backoff=2)
 def get_permissions_by_ids(
     drive_service: RefreshableDriveObject,
     doc_id: str,

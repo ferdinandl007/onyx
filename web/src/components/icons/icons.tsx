@@ -44,6 +44,7 @@ import amazonSVG from "../../../public/Amazon.svg";
 import geminiSVG from "../../../public/Gemini.svg";
 import metaSVG from "../../../public/Meta.svg";
 import mistralSVG from "../../../public/Mistral.svg";
+import qwenSVG from "../../../public/Qwen.svg";
 import openSourceIcon from "../../../public/OpenSource.png";
 import litellmIcon from "../../../public/litellm.png";
 import azureIcon from "../../../public/Azure.png";
