@@ -104,32 +104,16 @@ AZURE_PROVIDER_NAME = "azure"
 
 
 VERTEXAI_PROVIDER_NAME = "vertex_ai"
-VERTEXAI_DEFAULT_MODEL = "gemini-2.0-flash"
-VERTEXAI_DEFAULT_FAST_MODEL = "gemini-2.0-flash-lite"
+VERTEXAI_DEFAULT_MODEL = "gemini-2.5-flash"
+VERTEXAI_DEFAULT_FAST_MODEL = "gemini-2.5-flash"
 VERTEXAI_MODEL_NAMES = [
-    # 2.5 pro models
-    "gemini-2.5-pro-preview-05-06",
-    "gemini-2.5-flash-preview-05-20",
-    # 2.0 flash-lite models
-    VERTEXAI_DEFAULT_FAST_MODEL,
-    "gemini-2.0-flash-lite-001",
-    # "gemini-2.0-flash-lite-preview-02-05",
-    # 2.0 flash models
-    VERTEXAI_DEFAULT_MODEL,
-    "gemini-2.0-flash-001",
-    "gemini-2.0-flash-exp",
-    # "gemini-2.0-flash-exp-image-generation",
-    # "gemini-2.0-flash-thinking-exp-01-21",
-    # 1.5 pro models
-    "gemini-1.5-pro-latest",
-    "gemini-1.5-pro",
-    "gemini-1.5-pro-001",
-    "gemini-1.5-pro-002",
-    # 1.5 flash models
-    "gemini-1.5-flash-latest",
-    "gemini-1.5-flash",
-    "gemini-1.5-flash-001",
-    "gemini-1.5-flash-002",
+    # 2.5 release models
+    "gemini-2.5-pro",
+    "gemini-2.5-flash",
+    # Anthropic models
+    "claude-sonnet-4",
+    "claude-opus-4",
+    "claude-3-7-sonnet@20250219",
 ]
 VERTEXAI_VISIBLE_MODEL_NAMES = [
     VERTEXAI_DEFAULT_MODEL,

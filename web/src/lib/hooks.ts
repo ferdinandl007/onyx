@@ -735,35 +735,9 @@ const MODEL_DISPLAY_NAMES: { [key: string]: string } = {
 
   // Google Models
 
-  // 2.5 pro models
-  "gemini-2.5-pro-preview-05-06": "Gemini 2.5 Pro (Preview May 6th)",
-  "gemini-2.5-flash-preview-05-20": "Gemini 2.5 Flash (Preview May 20th)",
-  // 2.0 flash lite models
-  "gemini-2.0-flash-lite": "Gemini 2.0 Flash Lite",
-  "gemini-2.0-flash-lite-001": "Gemini 2.0 Flash Lite (v1)",
-  // "gemini-2.0-flash-lite-preview-02-05": "Gemini 2.0 Flash Lite (Prv)",
-  // "gemini-2.0-pro-exp-02-05": "Gemini 2.0 Pro (Exp)",
-
-  // 2.0 flash models
-  "gemini-2.0-flash": "Gemini 2.0 Flash",
-  "gemini-2.0-flash-001": "Gemini 2.0 Flash (v1)",
-  "gemini-2.0-flash-exp": "Gemini 2.0 Flash (Experimental)",
-  // "gemini-2.0-flash-thinking-exp-01-02":
-  //   "Gemini 2.0 Flash Thinking (Experimental January 2nd)",
-  // "gemini-2.0-flash-thinking-exp-01-21":
-  //   "Gemini 2.0 Flash Thinking (Experimental January 21st)",
-
-  // 1.5 pro models
-  "gemini-1.5-pro": "Gemini 1.5 Pro",
-  "gemini-1.5-pro-latest": "Gemini 1.5 Pro (Latest)",
-  "gemini-1.5-pro-001": "Gemini 1.5 Pro (v1)",
-  "gemini-1.5-pro-002": "Gemini 1.5 Pro (v2)",
-
-  // 1.5 flash models
-  "gemini-1.5-flash": "Gemini 1.5 Flash",
-  "gemini-1.5-flash-latest": "Gemini 1.5 Flash (Latest)",
-  "gemini-1.5-flash-002": "Gemini 1.5 Flash (v2)",
-  "gemini-1.5-flash-001": "Gemini 1.5 Flash (v1)",
+  // 2.5 release models
+  "gemini-2.5-pro": "Gemini 2.5 Pro",
+  "gemini-2.5-flash": "Gemini 2.5 Flash",
 
   // Mistral Models
   "mistral-large-2411": "Mistral Large 24.11",

@@ -37,7 +37,7 @@ import jiraSVG from "../../../public/Jira.svg";
 import confluenceSVG from "../../../public/Confluence.svg";
 import deepseekSVG from "../../../public/Deepseek.svg";
 import xaiSVG from "../../../public/XAI_Logo.svg";
-import qwenSVG from "../../../public/qwen-square.svg";
+import qwenSquareSVG from "../../../public/qwen-square.svg";
 import perplexitySVG from "../../../public/perplexity-ai-icon.png";
 import openAISVG from "../../../public/Openai.svg";
 import amazonSVG from "../../../public/Amazon.svg";
