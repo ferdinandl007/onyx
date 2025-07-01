@@ -62,16 +62,17 @@ def generate_chat_messages_report(
                     ]
                 )
 
-        # after writing seek to beginning of buffer
+        # after writing seek to begining of buffer
         temp_file.seek(0)
-        file_id = file_store.save_file(
+        file_store.save_file(
+            file_name=file_name,
             content=temp_file,
             display_name=file_name,
             file_origin=FileOrigin.OTHER,
             file_type="text/csv",
         )
 
-    return file_id
+    return file_name
 
 
 def generate_user_report(
@@ -96,14 +97,15 @@ def generate_user_report(
             csvwriter.writerow([user_skeleton.user_id, user_skeleton.is_active])
 
         temp_file.seek(0)
-        file_id = file_store.save_file(
+        file_store.save_file(
+            file_name=file_name,
             content=temp_file,
             display_name=file_name,
             file_origin=FileOrigin.OTHER,
             file_type="text/csv",
         )
 
-    return file_id
+    return file_name
 
 
 def create_new_usage_report(
@@ -114,16 +116,16 @@ def create_new_usage_report(
     report_id = str(uuid.uuid4())
     file_store = get_default_file_store(db_session)
 
-    messages_file_id = generate_chat_messages_report(
+    messages_filename = generate_chat_messages_report(
         db_session, file_store, report_id, period
     )
-    users_file_id = generate_user_report(db_session, file_store, report_id)
+    users_filename = generate_user_report(db_session, file_store, report_id)
 
     with tempfile.SpooledTemporaryFile(max_size=MAX_IN_MEMORY_SIZE) as zip_buffer:
         with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED) as zip_file:
             # write messages
             chat_messages_tmpfile = file_store.read_file(
-                messages_file_id, mode="b", use_tempfile=True
+                messages_filename, mode="b", use_tempfile=True
             )
             zip_file.writestr(
                 "chat_messages.csv",
@@ -132,7 +134,7 @@ def create_new_usage_report(
 
             # write users
             users_tmpfile = file_store.read_file(
-                users_file_id, mode="b", use_tempfile=True
+                users_filename, mode="b", use_tempfile=True
             )
             zip_file.writestr("users.csv", users_tmpfile.read())
 
@@ -144,11 +146,11 @@ def create_new_usage_report(
             f"_{report_id}_usage_report.zip"
         )
         file_store.save_file(
+            file_name=report_name,
             content=zip_buffer,
             display_name=report_name,
             file_origin=FileOrigin.GENERATED_REPORT,
             file_type="application/zip",
-            file_id=report_name,
         )
 
     # add report after zip file is written

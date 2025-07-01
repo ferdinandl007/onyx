@@ -1,6 +1,6 @@
 "use client";
 
-import { AccessType, ValidSources } from "@/lib/types";
+import { ValidSources } from "@/lib/types";
 import useSWR, { mutate } from "swr";
 import { errorHandlingFetcher } from "@/lib/fetcher";
 import { FaKey } from "react-icons/fa";
@@ -79,14 +79,9 @@ export default function CredentialSection({
 
   const onSwap = async (
     selectedCredential: Credential<any>,
-    connectorId: number,
-    accessType: AccessType
+    connectorId: number
   ) => {
-    const response = await swapCredential(
-      selectedCredential.id,
-      connectorId,
-      accessType
-    );
+    const response = await swapCredential(selectedCredential.id, connectorId);
     if (response.ok) {
       mutate(buildSimilarCredentialInfoURL(sourceType));
       refresh();
@@ -229,7 +224,7 @@ export default function CredentialSection({
         >
           <ModifyCredential
             close={closeModifyCredential}
-            accessType={ccPair.access_type}
+            source={sourceType}
             attachedConnector={ccPair.connector}
             defaultedCredential={defaultedCredential}
             credentials={credentials}
@@ -277,7 +272,6 @@ export default function CredentialSection({
               ) : (
                 <CreateCredential
                   sourceType={sourceType}
-                  accessType={ccPair.access_type}
                   swapConnector={ccPair.connector}
                   setPopup={setPopup}
                   onSwap={onSwap}

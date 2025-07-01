@@ -7,7 +7,10 @@ import { adminDeleteCredential } from "@/lib/credential";
 import { setupGoogleDriveOAuth } from "@/lib/googleDrive";
 import { GOOGLE_DRIVE_AUTH_IS_ADMIN_COOKIE_NAME } from "@/lib/constants";
 import Cookies from "js-cookie";
-import { TextFormField, SectionHeader } from "@/components/Field";
+import {
+  TextFormField,
+  SectionHeader,
+} from "@/components/admin/connectors/Field";
 import { Form, Formik } from "formik";
 import { User } from "@/lib/types";
 import { Button } from "@/components/ui/button";

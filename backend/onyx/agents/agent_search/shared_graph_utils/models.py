@@ -159,8 +159,3 @@ BaseMessage_Content = str | list[str | dict[str, Any]]
 class QueryExpansionType(Enum):
     KEYWORD = "keyword"
     SEMANTIC = "semantic"
-
-
-class ReferenceResults(BaseModel):
-    citations: list[str]
-    general_entities: list[str]

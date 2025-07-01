@@ -6,7 +6,7 @@ import {
   ManualErrorMessage,
   SubLabel,
   TextFormField,
-} from "@/components/Field";
+} from "@/components/admin/connectors/Field";
 import { FiPlus, FiX } from "react-icons/fi";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";

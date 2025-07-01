@@ -58,6 +58,7 @@ def test_index_attempt_pagination(reset: None) -> None:
     # Create an admin user to perform actions
     user_performing_action: DATestUser = UserManager.create(
         name="admin_performing_action",
+        is_first_user=True,
     )
 
     # Create a CC pair to attach index attempts to

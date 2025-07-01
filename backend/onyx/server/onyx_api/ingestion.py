@@ -1,6 +1,3 @@
-from datetime import datetime
-from datetime import timezone
-
 from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import HTTPException
@@ -14,7 +11,7 @@ from onyx.connectors.models import IndexAttemptMetadata
 from onyx.db.connector_credential_pair import get_connector_credential_pair_from_id
 from onyx.db.document import get_documents_by_cc_pair
 from onyx.db.document import get_ingestion_documents
-from onyx.db.engine.sql_engine import get_session
+from onyx.db.engine import get_session
 from onyx.db.models import User
 from onyx.db.search_settings import get_active_search_settings
 from onyx.db.search_settings import get_current_search_settings
@@ -79,9 +76,6 @@ def upsert_ingestion_doc(
     tenant_id = get_current_tenant_id()
 
     doc_info.document.from_ingestion_api = True
-
-    if doc_info.document.doc_updated_at is None:
-        doc_info.document.doc_updated_at = datetime.now(tz=timezone.utc)
 
     document = Document.from_base(doc_info.document)
 

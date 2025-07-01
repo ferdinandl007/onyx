@@ -2,6 +2,7 @@ import io
 import json
 import os
 import re
+import uuid
 import zipfile
 from collections.abc import Callable
 from collections.abc import Iterator
@@ -300,7 +301,7 @@ def read_pdf_file(
 
 
 def docx_to_text_and_images(
-    file: IO[Any], file_name: str = ""
+    file: IO[Any],
 ) -> tuple[str, Sequence[tuple[bytes, str]]]:
     """
     Extract text from a docx. If embed_images=True, also extract inline images.
@@ -309,11 +310,7 @@ def docx_to_text_and_images(
     paragraphs = []
     embedded_images: list[tuple[bytes, str]] = []
 
-    try:
-        doc = docx.Document(file)
-    except BadZipFile as e:
-        logger.warning(f"Failed to extract text from {file_name or 'docx file'}: {e}")
-        return "", []
+    doc = docx.Document(file)
 
     # Grab text from paragraphs
     for paragraph in doc.paragraphs:
@@ -367,24 +364,9 @@ def xlsx_to_text(file: IO[Any], file_name: str = "") -> str:
     text_content = []
     for sheet in workbook.worksheets:
         rows = []
-        num_empty_consecutive_rows = 0
         for row in sheet.iter_rows(min_row=1, values_only=True):
-            row_str = ",".join(str(cell or "") for cell in row)
-
-            # Only add the row if there are any values in the cells
-            if len(row_str) >= len(row):
-                rows.append(row_str)
-                num_empty_consecutive_rows = 0
-            else:
-                num_empty_consecutive_rows += 1
-
-            if num_empty_consecutive_rows > 100:
-                # handle massive excel sheets with mostly empty cells
-                logger.warning(
-                    f"Found {num_empty_consecutive_rows} empty rows in {file_name},"
-                    " skipping rest of file"
-                )
-                break
+            row_str = ",".join(str(cell) if cell is not None else "" for cell in row)
+            rows.append(row_str)
         sheet_str = "\n".join(rows)
         text_content.append(sheet_str)
     return TEXT_SECTION_SEPARATOR.join(text_content)
@@ -605,13 +587,15 @@ def convert_docx_to_txt(file: UploadFile, file_store: FileStore) -> str:
     all_paras = [p.text for p in doc.paragraphs]
     text_content = "\n".join(all_paras)
 
-    file_id = file_store.save_file(
+    text_file_name = docx_to_txt_filename(file.filename or f"docx_{uuid.uuid4()}")
+    file_store.save_file(
+        file_name=text_file_name,
         content=BytesIO(text_content.encode("utf-8")),
         display_name=file.filename,
         file_origin=FileOrigin.CONNECTOR,
         file_type="text/plain",
     )
-    return file_id
+    return text_file_name
 
 
 def docx_to_txt_filename(file_path: str) -> str:

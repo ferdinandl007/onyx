@@ -14,7 +14,11 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { ArrayHelpers, FieldArray, Form, Formik, FormikProps } from "formik";
 
-import { BooleanFormField, Label, TextFormField } from "@/components/Field";
+import {
+  BooleanFormField,
+  Label,
+  TextFormField,
+} from "@/components/admin/connectors/Field";
 
 import { usePopup } from "@/components/admin/connectors/Popup";
 import { getDisplayNameForModel, useLabels } from "@/lib/hooks";
@@ -122,6 +126,7 @@ export function AssistantEditor({
   llmProviders,
   tools,
   shouldAddAssistantToUserPreferences,
+  admin,
 }: {
   existingPersona?: FullPersona | null;
   ccPairs: CCPairBasicInfo[];
@@ -131,6 +136,7 @@ export function AssistantEditor({
   llmProviders: LLMProviderView[];
   tools: ToolSnapshot[];
   shouldAddAssistantToUserPreferences?: boolean;
+  admin?: boolean;
 }) {
   const { refreshAssistants, isImageGenerationAvailable } = useAssistants();
 
@@ -231,11 +237,6 @@ export function AssistantEditor({
 
   const [showVisibilityWarning, setShowVisibilityWarning] = useState(false);
 
-  const canShowKnowledgeSource =
-    ccPairs.length > 0 &&
-    searchTool &&
-    !(user?.role === UserRole.BASIC && documentSets.length === 0);
-
   const initialValues = {
     name: existingPersona?.name ?? "",
     description: existingPersona?.description ?? "",
@@ -274,10 +275,9 @@ export function AssistantEditor({
     selectedGroups: existingPersona?.groups ?? [],
     user_file_ids: existingPersona?.user_file_ids ?? [],
     user_folder_ids: existingPersona?.user_folder_ids ?? [],
-    knowledge_source: !canShowKnowledgeSource
-      ? "user_files"
-      : (existingPersona?.user_file_ids?.length ?? 0) > 0 ||
-          (existingPersona?.user_folder_ids?.length ?? 0) > 0
+    knowledge_source:
+      (existingPersona?.user_file_ids?.length ?? 0) > 0 ||
+      (existingPersona?.user_folder_ids?.length ?? 0) > 0
         ? "user_files"
         : "team_knowledge",
     is_default_persona: existingPersona?.is_default_persona ?? false,
@@ -374,6 +374,11 @@ export function AssistantEditor({
     }
   };
 
+  const canShowKnowledgeSource =
+    ccPairs.length > 0 &&
+    searchTool &&
+    !(user?.role != "admin" && documentSets.length === 0);
+
   return (
     <div className="mx-auto max-w-4xl">
       <style>
@@ -384,9 +389,12 @@ export function AssistantEditor({
           }
         `}
       </style>
-      <div className="absolute top-4 left-4">
-        <BackButton />
-      </div>
+      {!admin && (
+        <div className="absolute top-4 left-4">
+          <BackButton />
+        </div>
+      )}
+
       {presentingDocument && (
         <TextView
           presentingDocument={presentingDocument}
@@ -524,7 +532,7 @@ export function AssistantEditor({
 
           // if disable_retrieval is set, set num_chunks to 0
           // to tell the backend to not fetch any documents
-          const numChunks = searchToolEnabled ? values.num_chunks || 25 : 0;
+          const numChunks = searchToolEnabled ? values.num_chunks || 10 : 0;
           const starterMessages = values.starter_messages
             .filter(
               (message: { message: string }) => message.message.trim() !== ""
@@ -968,11 +976,12 @@ export function AssistantEditor({
                         )}
 
                         {values.knowledge_source === "user_files" &&
-                          !existingPersona?.is_default_persona && (
+                          !existingPersona?.is_default_persona &&
+                          !admin && (
                             <div className="text-sm flex flex-col items-start">
                               <SubLabel>
-                                Click below to add documents or folders from My
-                                Documents
+                                Click below to add documents or folders from the
+                                My Document feature
                               </SubLabel>
                               {(values.user_file_ids.length > 0 ||
                                 values.user_folder_ids.length > 0) && (
@@ -1007,34 +1016,30 @@ export function AssistantEditor({
 
                         {values.knowledge_source === "team_knowledge" &&
                           ccPairs.length > 0 && (
-                            <>
-                              {canShowKnowledgeSource && (
-                                <div className="mt-4">
-                                  <div>
-                                    <SubLabel>
-                                      <>
-                                        Select which{" "}
-                                        {!user ||
-                                        user.role !== UserRole.BASIC ? (
-                                          <Link
-                                            href="/admin/documents/sets"
-                                            className="font-semibold underline hover:underline text-text"
-                                            target="_blank"
-                                          >
-                                            Document Sets
-                                          </Link>
-                                        ) : (
-                                          "Team Document Sets"
-                                        )}{" "}
-                                        this Assistant should use to inform its
-                                        responses. If none are specified, the
-                                        Assistant will reference all available
-                                        documents.
-                                      </>
-                                    </SubLabel>
-                                  </div>
-                                </div>
-                              )}
+                            <div className="mt-4">
+                              <div>
+                                <SubLabel>
+                                  <>
+                                    Select which{" "}
+                                    {!user || user.role === "admin" ? (
+                                      <Link
+                                        href="/admin/documents/sets"
+                                        className="font-semibold underline hover:underline text-text"
+                                        target="_blank"
+                                      >
+                                        Document Sets
+                                      </Link>
+                                    ) : (
+                                      "Team Document Sets"
+                                    )}{" "}
+                                    this Assistant should use to inform its
+                                    responses. If none are specified, the
+                                    Assistant will reference all available
+                                    documents.
+                                  </>
+                                </SubLabel>
+                              </div>
+
                               {documentSets.length > 0 ? (
                                 <FieldArray
                                   name="document_set_ids"
@@ -1077,7 +1082,7 @@ export function AssistantEditor({
                                   </Link>
                                 </p>
                               )}
-                            </>
+                            </div>
                           )}
                       </div>
                     )}
@@ -1182,7 +1187,7 @@ export function AssistantEditor({
                 {showAdvancedOptions && (
                   <>
                     <div className="max-w-4xl w-full">
-                      {user?.role === UserRole.ADMIN && (
+                      {user?.role == UserRole.ADMIN && (
                         <BooleanFormField
                           onChange={(checked) => {
                             if (checked) {
@@ -1476,7 +1481,7 @@ export function AssistantEditor({
                                   {option.name}
                                 </span>
                               </div>
-                              {user?.role === UserRole.ADMIN && (
+                              {admin && (
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -1593,33 +1598,32 @@ export function AssistantEditor({
                   </>
                 )}
 
-                <div className="mt-12 w-full flex justify-between items-center">
-                  <div>
-                    {existingPersona && (
-                      <Button
-                        variant="destructive"
-                        onClick={openDeleteModal}
-                        type="button"
-                      >
-                        Delete
-                      </Button>
-                    )}
-                  </div>
-                  <div className="flex gap-x-2">
+                <div className="mt-12 gap-x-2 w-full justify-end flex">
+                  <Button
+                    type="submit"
+                    disabled={isSubmitting || isRequestSuccessful}
+                  >
+                    {isUpdate ? "Update" : "Create"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => router.back()}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+
+                <div className="flex justify-end">
+                  {existingPersona && (
                     <Button
-                      type="submit"
-                      disabled={isSubmitting || isRequestSuccessful}
-                    >
-                      {isUpdate ? "Update" : "Create"}
-                    </Button>
-                    <Button
+                      variant="destructive"
+                      onClick={openDeleteModal}
                       type="button"
-                      variant="outline"
-                      onClick={() => router.back()}
                     >
-                      Cancel
+                      Delete
                     </Button>
-                  </div>
+                  )}
                 </div>
               </Form>
             </>

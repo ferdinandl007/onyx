@@ -76,11 +76,10 @@ def hash_api_key(api_key: str) -> str:
     # and overlaps are impossible
     if api_key.startswith(_API_KEY_PREFIX):
         return hashlib.sha256(api_key.encode("utf-8")).hexdigest()
-
-    if api_key.startswith(_DEPRECATED_API_KEY_PREFIX):
+    elif api_key.startswith(_DEPRECATED_API_KEY_PREFIX):
         return _deprecated_hash_api_key(api_key)
-
-    raise ValueError(f"Invalid API key prefix: {api_key[:3]}")
+    else:
+        raise ValueError(f"Invalid API key prefix: {api_key[:3]}")
 
 
 def build_displayable_api_key(api_key: str) -> str:

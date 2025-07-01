@@ -66,14 +66,8 @@ def _generate_dummy_document(
     document_id: str,
     cc_pair_id: int,
     content: str | None = None,
-    extra_metadata: dict | None = None,
 ) -> dict:
     text = content if content else f"This is test document {document_id}"
-
-    metadata: dict = {"document_id": document_id}
-    if extra_metadata:
-        metadata.update(extra_metadata)
-
     return {
         "document": {
             "id": document_id,
@@ -84,7 +78,8 @@ def _generate_dummy_document(
                 }
             ],
             "source": DocumentSource.NOT_APPLICABLE,
-            "metadata": metadata,
+            # just for testing metadata
+            "metadata": {"document_id": document_id},
             "semantic_identifier": f"Test Document {document_id}",
             "from_ingestion_api": True,
         },
@@ -133,18 +128,12 @@ class DocumentManager:
         content: str,
         document_id: str | None = None,
         api_key: DATestAPIKey | None = None,
-        metadata: dict | None = None,
     ) -> SimpleTestDocument:
         # Use provided document_ids if available, otherwise generate random UUIDs
         if document_id is None:
             document_id = f"test-doc-{uuid4()}"
         # Create and ingest some documents
-        document: dict = _generate_dummy_document(
-            document_id,
-            cc_pair.id,
-            content,
-            extra_metadata=metadata,
-        )
+        document: dict = _generate_dummy_document(document_id, cc_pair.id, content)
         response = requests.post(
             f"{API_SERVER_URL}/onyx-api/ingestion",
             json=document,
@@ -244,11 +233,10 @@ class DocumentManager:
         for doc_dict in retrieved_docs_dict:
             doc_id = doc_dict["fields"]["document_id"]
             doc_content = doc_dict["fields"]["content"]
-            # still called `image_file_name` in Vespa for backwards compatibility
-            image_file_id = doc_dict["fields"].get("image_file_name", None)
+            image_file_name = doc_dict["fields"].get("image_file_name", None)
             final_docs.append(
                 SimpleTestDocument(
-                    id=doc_id, content=doc_content, image_file_id=image_file_id
+                    id=doc_id, content=doc_content, image_file_name=image_file_name
                 )
             )
 

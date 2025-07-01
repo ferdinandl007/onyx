@@ -4,8 +4,7 @@ import httpx
 from pydantic import BaseModel
 from typing_extensions import override
 
-from onyx.access.models import ExternalAccess
-from onyx.connectors.interfaces import CheckpointedConnectorWithPermSync
+from onyx.connectors.interfaces import CheckpointedConnector
 from onyx.connectors.interfaces import CheckpointOutput
 from onyx.connectors.interfaces import SecondsSinceUnixEpoch
 from onyx.connectors.models import ConnectorCheckpoint
@@ -15,10 +14,6 @@ from onyx.utils.logger import setup_logger
 
 
 logger = setup_logger()
-
-
-EXTERNAL_USER_EMAILS = {"test@example.com", "admin@example.com"}
-EXTERNAL_USER_GROUP_IDS = {"mock-group-1", "mock-group-2"}
 
 
 class MockConnectorCheckpoint(ConnectorCheckpoint):
@@ -32,7 +27,7 @@ class SingleConnectorYield(BaseModel):
     unhandled_exception: str | None = None
 
 
-class MockConnector(CheckpointedConnectorWithPermSync[MockConnectorCheckpoint]):
+class MockConnector(CheckpointedConnector[MockConnectorCheckpoint]):
     def __init__(
         self,
         mock_server_host: str,
@@ -65,12 +60,11 @@ class MockConnector(CheckpointedConnectorWithPermSync[MockConnectorCheckpoint]):
         )
         response.raise_for_status()
 
-    def _load_from_checkpoint_common(
+    def load_from_checkpoint(
         self,
         start: SecondsSinceUnixEpoch,
         end: SecondsSinceUnixEpoch,
         checkpoint: MockConnectorCheckpoint,
-        include_permissions: bool = False,
     ) -> CheckpointOutput[MockConnectorCheckpoint]:
         if self.connector_yields is None:
             raise ValueError("No connector yields configured")
@@ -89,41 +83,12 @@ class MockConnector(CheckpointedConnectorWithPermSync[MockConnectorCheckpoint]):
 
         # yield all documents
         for document in current_yield.documents:
-            # If permissions are requested and not already set, add mock permissions
-            if include_permissions and document.external_access is None:
-                # Add mock permissions - make documents accessible to specific users/groups
-                document.external_access = ExternalAccess(
-                    external_user_emails=EXTERNAL_USER_EMAILS,
-                    external_user_group_ids=EXTERNAL_USER_GROUP_IDS,
-                    is_public=False,
-                )
             yield document
 
         for failure in current_yield.failures:
             yield failure
 
         return current_yield.checkpoint
-
-    def load_from_checkpoint(
-        self,
-        start: SecondsSinceUnixEpoch,
-        end: SecondsSinceUnixEpoch,
-        checkpoint: MockConnectorCheckpoint,
-    ) -> CheckpointOutput[MockConnectorCheckpoint]:
-        return self._load_from_checkpoint_common(
-            start, end, checkpoint, include_permissions=False
-        )
-
-    @override
-    def load_from_checkpoint_with_perm_sync(
-        self,
-        start: SecondsSinceUnixEpoch,
-        end: SecondsSinceUnixEpoch,
-        checkpoint: MockConnectorCheckpoint,
-    ) -> CheckpointOutput[MockConnectorCheckpoint]:
-        return self._load_from_checkpoint_common(
-            start, end, checkpoint, include_permissions=True
-        )
 
     @override
     def build_dummy_checkpoint(self) -> MockConnectorCheckpoint:

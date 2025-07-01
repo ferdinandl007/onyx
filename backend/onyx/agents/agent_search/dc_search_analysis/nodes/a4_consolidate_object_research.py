@@ -71,12 +71,15 @@ def consolidate_object_research(
             ),
         )
     ]
+    graph_config.tooling.primary_llm
+    # fast_llm = graph_config.tooling.fast_llm
     primary_llm = graph_config.tooling.primary_llm
+    llm = primary_llm
     # Grader
     try:
         llm_response = run_with_timeout(
             30,
-            primary_llm.invoke,
+            llm.invoke,
             prompt=msg,
             timeout_override=30,
             max_tokens=300,

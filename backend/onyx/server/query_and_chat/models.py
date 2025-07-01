@@ -275,7 +275,6 @@ class ChatSessionDetailResponse(BaseModel):
     shared_status: ChatSessionSharedStatus
     current_alternate_model: str | None
     current_temperature_override: float | None
-    deleted: bool = False
 
 
 # This one is not used anymore

@@ -10,7 +10,6 @@ from pydantic import BaseModel
 
 from onyx.chat.chat_utils import combine_message_chain
 from onyx.chat.prompt_builder.answer_prompt_builder import AnswerPromptBuilder
-from onyx.configs.app_configs import IMAGE_MODEL_NAME
 from onyx.configs.model_configs import GEN_AI_HISTORY_CUTOFF
 from onyx.configs.tool_configs import IMAGE_GENERATION_OUTPUT_FORMAT
 from onyx.llm.interfaces import LLM
@@ -91,17 +90,11 @@ class ImageGenerationTool(Tool[None]):
         api_key: str,
         api_base: str | None,
         api_version: str | None,
-        model: str = IMAGE_MODEL_NAME,
+        model: str = "dall-e-3",
         num_imgs: int = 2,
         additional_headers: dict[str, str] | None = None,
         output_format: ImageFormat = _DEFAULT_OUTPUT_FORMAT,
     ) -> None:
-
-        if model == "gpt-image-1" and output_format == ImageFormat.URL:
-            raise ValueError(
-                "gpt-image-1 does not support URL format. Please use BASE64 format."
-            )
-
         self.api_key = api_key
         self.api_base = api_base
         self.api_version = api_version
@@ -206,20 +199,12 @@ class ImageGenerationTool(Tool[None]):
         self, prompt: str, shape: ImageShape, format: ImageFormat
     ) -> ImageGenerationResponse:
         if shape == ImageShape.LANDSCAPE:
-            if self.model == "gpt-image-1":
-                size = "1536x1024"
-            else:
-                size = "1792x1024"
+            size = "1792x1024"
         elif shape == ImageShape.PORTRAIT:
-            if self.model == "gpt-image-1":
-                size = "1024x1536"
-            else:
-                size = "1024x1792"
+            size = "1024x1792"
         else:
             size = "1024x1024"
-        logger.debug(
-            f"Generating image with model: {self.model}, size: {size}, format: {format}"
-        )
+
         try:
             response = image_generation(
                 prompt=prompt,
@@ -240,12 +225,8 @@ class ImageGenerationTool(Tool[None]):
                 url = None
                 image_data = response.data[0]["b64_json"]
 
-            revised_prompt = response.data[0].get("revised_prompt")
-            if revised_prompt is None:
-                revised_prompt = prompt
-
             return ImageGenerationResponse(
-                revised_prompt=revised_prompt,
+                revised_prompt=response.data[0]["revised_prompt"],
                 url=url,
                 image_data=image_data,
             )

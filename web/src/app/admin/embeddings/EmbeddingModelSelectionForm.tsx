@@ -129,12 +129,8 @@ export function EmbeddingModelSelection({
       {showTentativeProvider && (
         <ProviderCreationModal
           updateCurrentModel={updateCurrentModel}
-          isProxy={
-            showTentativeProvider.provider_type == EmbeddingProvider.LITELLM
-          }
-          isAzure={
-            showTentativeProvider.provider_type == EmbeddingProvider.AZURE
-          }
+          isProxy={showTentativeProvider.provider_type == "LiteLLM"}
+          isAzure={showTentativeProvider.provider_type == "Azure"}
           selectedProvider={showTentativeProvider}
           onConfirm={() => {
             setShowTentativeProvider(showUnconfiguredProvider);
@@ -152,15 +148,9 @@ export function EmbeddingModelSelection({
 
       {changeCredentialsProvider && (
         <ChangeCredentialsModal
-          isProxy={
-            changeCredentialsProvider.provider_type == EmbeddingProvider.LITELLM
-          }
-          isAzure={
-            changeCredentialsProvider.provider_type == EmbeddingProvider.AZURE
-          }
-          useFileUpload={
-            changeCredentialsProvider.provider_type == EmbeddingProvider.GOOGLE
-          }
+          isProxy={changeCredentialsProvider.provider_type == "LiteLLM"}
+          isAzure={changeCredentialsProvider.provider_type == "Azure"}
+          useFileUpload={changeCredentialsProvider.provider_type == "Google"}
           onDeleted={() => {
             setChangeCredentialsProvider(null);
             mutateEmbeddingProviderDetails();

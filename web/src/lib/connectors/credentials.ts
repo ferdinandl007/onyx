@@ -10,16 +10,6 @@ export interface OAuthDetails {
   oauth_enabled: boolean;
   additional_kwargs: OAuthAdditionalKwargDescription[];
 }
-export interface AuthMethodOption<TFields> {
-  value: string;
-  label: string;
-  fields: TFields;
-  description?: string;
-}
-export interface CredentialTemplateWithAuth<TFields> {
-  authentication_method?: string;
-  authMethods?: AuthMethodOption<Partial<TFields>>[];
-}
 
 export interface CredentialBase<T> {
   credential_json: T;
@@ -163,9 +153,8 @@ export interface R2CredentialJson {
 }
 
 export interface S3CredentialJson {
-  aws_access_key_id?: string;
-  aws_secret_access_key?: string;
-  aws_role_arn?: string;
+  aws_access_key_id: string;
+  aws_secret_access_key: string;
 }
 
 export interface GCSCredentialJson {
@@ -322,32 +311,9 @@ export const credentialTemplates: Record<ValidSources, any> = {
     clickup_team_id: "",
   } as ClickupCredentialJson,
   s3: {
-    authentication_method: "access_key",
-    authMethods: [
-      {
-        value: "access_key",
-        label: "Access Key and Secret",
-        fields: {
-          aws_access_key_id: "",
-          aws_secret_access_key: "",
-        },
-      },
-      {
-        value: "iam_role",
-        label: "IAM Role",
-        fields: {
-          aws_role_arn: "",
-        },
-      },
-      {
-        value: "assume_role",
-        label: "Assume Role",
-        fields: {},
-        description:
-          "If you select this mode, the Amazon EC2 instance will assume its existing role to access S3. No additional credentials are required.",
-      },
-    ],
-  } as CredentialTemplateWithAuth<S3CredentialJson>,
+    aws_access_key_id: "",
+    aws_secret_access_key: "",
+  } as S3CredentialJson,
   r2: {
     account_id: "",
     r2_access_key_id: "",
@@ -487,8 +453,6 @@ export const credentialDisplayNames: Record<string, string> = {
   // S3
   aws_access_key_id: "AWS Access Key ID",
   aws_secret_access_key: "AWS Secret Access Key",
-  aws_role_arn: "AWS Role ARN",
-  authentication_method: "Authentication Method",
 
   // GCS
   access_key_id: "GCS Access Key ID",

@@ -78,6 +78,12 @@ class InformationContentClassificationRequests(BaseModel):
     queries: list[str]
 
 
+class SupportedEmbeddingModel(BaseModel):
+    name: str
+    dim: int
+    index_name: str
+
+
 class ContentClassificationPrediction(BaseModel):
     predicted_label: int
     content_boost_factor: float

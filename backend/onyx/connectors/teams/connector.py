@@ -11,37 +11,31 @@ from office365.graph_client import GraphClient  # type: ignore
 from office365.runtime.client_request_exception import ClientRequestException  # type: ignore
 from office365.runtime.http.request_options import RequestOptions  # type: ignore[import-untyped]
 from office365.teams.channels.channel import Channel  # type: ignore
+from office365.teams.chats.messages.message import ChatMessage  # type: ignore
 from office365.teams.team import Team  # type: ignore
 
 from onyx.configs.constants import DocumentSource
+from onyx.connectors.cross_connector_utils.miscellaneous_utils import time_str_to_utc
 from onyx.connectors.exceptions import ConnectorValidationError
 from onyx.connectors.exceptions import CredentialExpiredError
 from onyx.connectors.exceptions import InsufficientPermissionsError
 from onyx.connectors.exceptions import UnexpectedValidationError
 from onyx.connectors.interfaces import CheckpointedConnector
 from onyx.connectors.interfaces import CheckpointOutput
-from onyx.connectors.interfaces import GenerateSlimDocumentOutput
 from onyx.connectors.interfaces import SecondsSinceUnixEpoch
-from onyx.connectors.interfaces import SlimConnector
+from onyx.connectors.models import BasicExpertInfo
 from onyx.connectors.models import ConnectorCheckpoint
 from onyx.connectors.models import ConnectorFailure
 from onyx.connectors.models import ConnectorMissingCredentialError
 from onyx.connectors.models import Document
 from onyx.connectors.models import EntityFailure
 from onyx.connectors.models import TextSection
-from onyx.connectors.teams.models import Message
-from onyx.connectors.teams.utils import fetch_expert_infos
-from onyx.connectors.teams.utils import fetch_external_access
-from onyx.connectors.teams.utils import fetch_messages
-from onyx.connectors.teams.utils import fetch_replies
 from onyx.file_processing.html_utils import parse_html_page_basic
-from onyx.indexing.indexing_heartbeat import IndexingHeartbeatInterface
 from onyx.utils.logger import setup_logger
+from onyx.utils.threadpool_concurrency import parallel_yield
 from onyx.utils.threadpool_concurrency import run_with_timeout
 
 logger = setup_logger()
-
-_SLIM_DOC_BATCH_SIZE = 5000
 
 
 class TeamsCheckpoint(ConnectorCheckpoint):
@@ -50,7 +44,6 @@ class TeamsCheckpoint(ConnectorCheckpoint):
 
 class TeamsConnector(
     CheckpointedConnector[TeamsCheckpoint],
-    SlimConnector,
 ):
     MAX_WORKERS = 10
     AUTHORITY_URL_PREFIX = "https://login.microsoftonline.com/"
@@ -109,7 +102,7 @@ class TeamsConnector(
             # make sure it doesn't take forever, since this is a syncronous call
             found_teams = run_with_timeout(
                 timeout=10,
-                func=_collect_all_teams,
+                func=_collect_all_team_ids,
                 graph_client=self.graph_client,
                 requested=self.requested_team_list,
             )
@@ -176,14 +169,13 @@ class TeamsConnector(
         todos = checkpoint.todo_team_ids
 
         if todos is None:
-            teams = _collect_all_teams(
+            root_todos = _collect_all_team_ids(
                 graph_client=self.graph_client,
                 requested=self.requested_team_list,
             )
-            todo_team_ids = [team.id for team in teams if team.id]
             return TeamsCheckpoint(
-                todo_team_ids=todo_team_ids,
-                has_more=bool(todo_team_ids),
+                todo_team_ids=root_todos,
+                has_more=bool(root_todos),
             )
 
         # `todos.pop()` should always return an element. This is because if
@@ -196,6 +188,7 @@ class TeamsConnector(
             team_id=todo_team_id,
         )
         channels = _collect_all_channels_from_team(
+            graph_client=self.graph_client,
             team=team,
         )
 
@@ -205,17 +198,17 @@ class TeamsConnector(
                 team=team,
                 channel=channel,
                 start=start,
+                end=end,
             )
             for channel in channels
         ]
 
-        # Was previously `for doc in parallel_yield(gens=docs, max_workers=self.max_workers): ...`.
-        # However, that lead to some weird exceptions (potentially due to non-thread-safe behaviour in the Teams library).
-        # Reverting back to the non-threaded case for now.
-        for channel_docs in channels_docs:
-            for channel_doc in channel_docs:
-                if channel_doc:
-                    yield channel_doc
+        for doc in parallel_yield(
+            gens=docs,
+            max_workers=self.max_workers,
+        ):
+            if doc:
+                yield doc
 
         logger.info(
             f"Processed team with id {todo_team_id}; {len(todos)} team(s) left to process"
@@ -226,75 +219,36 @@ class TeamsConnector(
             has_more=bool(todos),
         )
 
-    # impls for SlimConnector
 
-    def retrieve_all_slim_documents(
-        self,
-        start: SecondsSinceUnixEpoch | None = None,
-        end: SecondsSinceUnixEpoch | None = None,
-        callback: IndexingHeartbeatInterface | None = None,
-    ) -> GenerateSlimDocumentOutput:
-        start = start or 0
-
-        teams = _collect_all_teams(
-            graph_client=self.graph_client,
-            requested=self.requested_team_list,
-        )
-
-        for team in teams:
-            if not team.id:
-                logger.warn(f"Expected a team with an id, instead got no id: {team=}")
-                continue
-
-            channels = _collect_all_channels_from_team(
-                team=team,
-            )
-
-            for channel in channels:
-                if not channel.id:
-                    logger.warn(
-                        f"Expected a channel with an id, instead got no id: {channel=}"
-                    )
-                    continue
-
-                external_access = fetch_external_access(
-                    graph_client=self.graph_client, channel=channel
-                )
-
-                messages = fetch_messages(
-                    graph_client=self.graph_client,
-                    team_id=team.id,
-                    channel_id=channel.id,
-                    start=start,
-                )
-
-                slim_doc_buffer = []
-
-                for message in messages:
-                    slim_doc_buffer.append(
-                        SlimDocument(
-                            id=message.id,
-                            external_access=external_access,
-                        )
-                    )
-
-                    if len(slim_doc_buffer) >= _SLIM_DOC_BATCH_SIZE:
-                        yield slim_doc_buffer
-                        slim_doc_buffer = []
+def _get_created_datetime(chat_message: ChatMessage) -> datetime:
+    # Extract the 'createdDateTime' value from the 'properties' dictionary and convert it to a datetime object
+    return time_str_to_utc(chat_message.properties["createdDateTime"])
 
 
-def _construct_semantic_identifier(channel: Channel, top_message: Message) -> str:
-    top_message_user_name = (
-        top_message.from_.user.display_name if top_message.from_ else "Unknown User"
-    )
-    top_message_content = top_message.body.content or ""
-    top_message_subject = top_message.subject or "Unknown Subject"
+def _extract_channel_members(channel: Channel) -> list[BasicExpertInfo]:
+    channel_members_list: list[BasicExpertInfo] = []
+    members = channel.members.get_all(
+        # explicitly needed because of incorrect type definitions provided by the `office365` library
+        page_loaded=lambda _: None
+    ).execute_query_retry()
+    for member in members:
+        channel_members_list.append(BasicExpertInfo(display_name=member.display_name))
+    return channel_members_list
+
+
+def _construct_semantic_identifier(channel: Channel, top_message: ChatMessage) -> str:
+    # NOTE: needs to be done this weird way because sometime we get back `None` for
+    # the fields which causes things to explode
+    top_message_from = top_message.properties.get("from") or {}
+    top_message_user = top_message_from.get("user") or {}
+    first_poster = top_message_user.get("displayName", "Unknown User")
+
     channel_name = channel.properties.get("displayName", "Unknown")
+    thread_subject = top_message.properties.get("subject", "Unknown")
 
     try:
-        snippet = parse_html_page_basic(top_message_content.rstrip())
+        snippet = parse_html_page_basic(top_message.body.content.rstrip())
         snippet = snippet[:50] + "..." if len(snippet) > 50 else snippet
-
     except Exception:
         logger.exception(
             f"Error parsing snippet for message "
@@ -302,9 +256,7 @@ def _construct_semantic_identifier(channel: Channel, top_message: Message) -> st
         )
         snippet = ""
 
-    semantic_identifier = (
-        f"{top_message_user_name} in {channel_name} about {top_message_subject}"
-    )
+    semantic_identifier = f"{first_poster} in {channel_name} about {thread_subject}"
     if snippet:
         semantic_identifier += f": {snippet}"
 
@@ -312,62 +264,82 @@ def _construct_semantic_identifier(channel: Channel, top_message: Message) -> st
 
 
 def _convert_thread_to_document(
-    graph_client: GraphClient,
     channel: Channel,
-    thread: list[Message],
+    thread: list[ChatMessage],
 ) -> Document | None:
     if len(thread) == 0:
         return None
 
     most_recent_message_datetime: datetime | None = None
     top_message = thread[0]
+    post_members_list: list[BasicExpertInfo] = []
     thread_text = ""
 
-    sorted_thread = sorted(thread, key=lambda m: m.created_date_time, reverse=True)
+    sorted_thread = sorted(thread, key=_get_created_datetime, reverse=True)
 
     if sorted_thread:
-        most_recent_message_datetime = sorted_thread[0].created_date_time
+        most_recent_message = sorted_thread[0]
+        most_recent_message_datetime = time_str_to_utc(
+            most_recent_message.properties["createdDateTime"]
+        )
 
     for message in thread:
-        # Add text and a newline
+        # add text and a newline
         if message.body.content:
-            thread_text += parse_html_page_basic(message.body.content)
+            message_text = parse_html_page_basic(message.body.content)
+            thread_text += message_text
 
-        # If it has a subject, that means its the top level post message, so grab its id, url, and subject
-        if message.subject:
+        # if it has a subject, that means its the top level post message, so grab its id, url, and subject
+        if message.properties["subject"]:
             top_message = message
+
+        # check to make sure there is a valid display name
+        if message.properties["from"]:
+            if message.properties["from"]["user"]:
+                if message.properties["from"]["user"]["displayName"]:
+                    message_sender = message.properties["from"]["user"]["displayName"]
+                    # if its not a duplicate, add it to the list
+                    if message_sender not in [
+                        member.display_name for member in post_members_list
+                    ]:
+                        post_members_list.append(
+                            BasicExpertInfo(display_name=message_sender)
+                        )
 
     if not thread_text:
         return None
 
-    semantic_string = _construct_semantic_identifier(channel, top_message)
-    expert_infos = fetch_expert_infos(graph_client=graph_client, channel=channel)
-    external_access = fetch_external_access(
-        graph_client=graph_client, channel=channel, expert_infos=expert_infos
-    )
+    # if there are no found post members, grab the members from the parent channel
+    if not post_members_list:
+        post_members_list = _extract_channel_members(channel)
 
-    return Document(
-        id=top_message.id,
-        sections=[TextSection(link=top_message.web_url, text=thread_text)],
+    semantic_string = _construct_semantic_identifier(channel, top_message)
+
+    post_id = top_message.properties["id"]
+    web_url = top_message.web_url
+
+    doc = Document(
+        id=post_id,
+        sections=[TextSection(link=web_url, text=thread_text)],
         source=DocumentSource.TEAMS,
         semantic_identifier=semantic_string,
         title="",  # teams threads don't really have a "title"
         doc_updated_at=most_recent_message_datetime,
-        primary_owners=expert_infos,
+        primary_owners=post_members_list,
         metadata={},
-        external_access=external_access,
     )
+    return doc
 
 
 def _update_request_url(request: RequestOptions, next_url: str) -> None:
     request.url = next_url
 
 
-def _collect_all_teams(
+def _collect_all_team_ids(
     graph_client: GraphClient,
     requested: list[str] | None = None,
-) -> list[Team]:
-    teams: list[Team] = []
+) -> list[str]:
+    team_ids: list[str] = []
     next_url: str | None = None
 
     filter = None
@@ -390,54 +362,55 @@ def _collect_all_teams(
             )
 
         team_collection = query.execute_query()
-        filtered_teams = (
-            team
-            for team in team_collection
-            if _filter_team(team=team, requested=requested)
-        )
-        teams.extend(filtered_teams)
 
-        if not team_collection.has_next:
+        filtered_team_ids = [
+            team_id
+            for team_id in [
+                _filter_team_id(team=team, requested=requested)
+                for team in team_collection
+            ]
+            if team_id
+        ]
+
+        team_ids.extend(filtered_team_ids)
+
+        if team_collection.has_next:
+            if not isinstance(team_collection._next_request_url, str):
+                raise ValueError(
+                    f"The next request url field should be a string, instead got {type(team_collection._next_request_url)}"
+                )
+            next_url = team_collection._next_request_url
+        else:
             break
 
-        if not isinstance(team_collection._next_request_url, str):
-            raise ValueError(
-                f"The next request url field should be a string, instead got {type(team_collection._next_request_url)}"
-            )
-
-        next_url = team_collection._next_request_url
-
-    return teams
+    return team_ids
 
 
-def _filter_team(
+def _filter_team_id(
     team: Team,
     requested: list[str] | None = None,
-) -> bool:
+) -> str | None:
     """
-    Returns the true if:
+    Returns the Team ID if:
         - Team is not expired / deleted
         - Team has a display-name and ID
         - Team display-name is in the requested teams list
 
-    Otherwise, returns false.
+    Otherwise, returns `None`.
     """
 
     if not team.id or not team.display_name:
-        return False
+        return None
 
     if requested and team.display_name not in requested:
-        return False
+        return None
 
     props = team.properties
 
-    expiration = props.get("expirationDateTime")
-    deleted = props.get("deletedDateTime")
+    if props.get("expirationDateTime") or props.get("deletedDateTime"):
+        return None
 
-    # We just check for the existence of those two fields, not their actual dates.
-    # This is because if these fields do exist, they have to have occurred in the past, thus making them already
-    # expired / deleted.
-    return not expiration and not deleted
+    return team.id
 
 
 def _get_team_by_id(
@@ -458,6 +431,7 @@ def _get_team_by_id(
 
 
 def _collect_all_channels_from_team(
+    graph_client: GraphClient,
     team: Team,
 ) -> list[Channel]:
     if not team.id:
@@ -499,24 +473,16 @@ def _collect_documents_for_channel(
     A "thread" is the conjunction of the "root" message and all of its replies.
     """
 
-    for message in fetch_messages(
-        graph_client=graph_client,
-        team_id=team.id,
-        channel_id=channel.id,
-        start=start,
-    ):
-        try:
-            replies = list(
-                fetch_replies(
-                    graph_client=graph_client,
-                    team_id=team.id,
-                    channel_id=channel.id,
-                    root_message_id=message.id,
-                )
-            )
+    # Server-side filter conditions are not supported on the chat-messages API.
+    # Therefore, we have to do this client-side, which is quite a bit more inefficient.
+    #
+    # Not allowed:
+    # message_collection = channel.messages.get().filter(f"createdDateTime gt {start}").execute_query()
 
-            thread = [message]
-            thread.extend(replies[::-1])
+    message_collection = channel.messages.get_all(
+        # explicitly needed because of incorrect type definitions provided by the `office365` library
+        page_loaded=lambda _: None
+    ).execute_query()
 
     for message in message_collection:
         if not message.id:
@@ -591,23 +557,22 @@ if __name__ == "__main__":
 
     teams_env_var = os.environ.get("TEAMS", None)
     teams = teams_env_var.split(",") if teams_env_var else []
+    connector = TeamsConnector(teams=teams)
 
-    teams_connector = TeamsConnector(teams=teams)
-    teams_connector.load_credentials(
+    connector.load_credentials(
         {
             "teams_client_id": app_id,
             "teams_directory_id": dir_id,
             "teams_client_secret": secret,
         }
     )
-    teams_connector.validate_connector_settings()
 
-    for slim_doc in teams_connector.retrieve_all_slim_documents():
-        ...
+    connector.validate_connector_settings()
 
-    for doc in load_everything_from_checkpoint_connector(
-        connector=teams_connector,
-        start=0.0,
-        end=datetime.now(tz=timezone.utc).timestamp(),
-    ):
-        print(doc)
+    print(
+        load_everything_from_checkpoint_connector(
+            connector=connector,
+            start=0.0,
+            end=datetime.now(tz=timezone.utc).timestamp(),
+        )
+    )

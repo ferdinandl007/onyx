@@ -108,7 +108,7 @@ def azure_embedding_model() -> EmbeddingModel:
     return EmbeddingModel(
         server_host="localhost",
         server_port=9000,
-        model_name="text-embedding-3-small",
+        model_name="text-embedding-3-large",
         normalize=True,
         query_prefix=None,
         passage_prefix=None,

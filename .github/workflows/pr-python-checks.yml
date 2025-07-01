@@ -54,6 +54,11 @@ jobs:
         cd backend
         mypy .
 
+    - name: Run ruff
+      run: |
+        cd backend
+        ruff .
+
     - name: Check import order with reorder-python-imports
       run: |
         cd backend

@@ -12,12 +12,12 @@ import {
 } from "@/components/icons/icons";
 
 export enum EmbeddingProvider {
-  OPENAI = "openai",
-  COHERE = "cohere",
-  VOYAGE = "voyage",
-  GOOGLE = "google",
-  LITELLM = "litellm",
-  AZURE = "azure",
+  OPENAI = "OpenAI",
+  COHERE = "Cohere",
+  VOYAGE = "Voyage",
+  GOOGLE = "Google",
+  LITELLM = "LiteLLM",
+  AZURE = "Azure",
 }
 
 export interface CloudEmbeddingProvider {
@@ -47,7 +47,7 @@ export interface EmbeddingModelDescriptor {
   normalize: boolean;
   query_prefix: string;
   passage_prefix: string;
-  provider_type: EmbeddingProvider | null;
+  provider_type: string | null;
   description: string;
   api_key: string | null;
   api_url: string | null;

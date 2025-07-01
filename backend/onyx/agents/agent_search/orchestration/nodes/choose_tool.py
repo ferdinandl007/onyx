@@ -83,22 +83,6 @@ def _expand_query(
     return rephrased_query
 
 
-def _expand_query_non_tool_calling_llm(
-    expanded_keyword_thread: TimeoutThread[str],
-    expanded_semantic_thread: TimeoutThread[str],
-) -> QueryExpansions | None:
-    keyword_expansion: str | None = wait_on_background(expanded_keyword_thread)
-    semantic_expansion: str | None = wait_on_background(expanded_semantic_thread)
-
-    if keyword_expansion is None or semantic_expansion is None:
-        return None
-
-    return QueryExpansions(
-        keywords_expansions=[keyword_expansion],
-        semantic_expansions=[semantic_expansion],
-    )
-
-
 # TODO: break this out into an implementation function
 # and a function that handles extracting the necessary fields
 # from the state and config
@@ -202,28 +186,6 @@ def choose_tool(
             is_keyword, keywords = wait_on_background(keyword_thread)
             override_kwargs.precomputed_is_keyword = is_keyword
             override_kwargs.precomputed_keywords = keywords
-        # dual keyword expansion needs to be added here for non-tool calling LLM case
-        if (
-            USE_SEMANTIC_KEYWORD_EXPANSIONS_BASIC_SEARCH
-            and expanded_keyword_thread
-            and expanded_semantic_thread
-            and tool.name == SearchTool._NAME
-        ):
-            override_kwargs.expanded_queries = _expand_query_non_tool_calling_llm(
-                expanded_keyword_thread=expanded_keyword_thread,
-                expanded_semantic_thread=expanded_semantic_thread,
-            )
-        if (
-            USE_SEMANTIC_KEYWORD_EXPANSIONS_BASIC_SEARCH
-            and tool.name == SearchTool._NAME
-            and override_kwargs.expanded_queries
-        ):
-            if (
-                override_kwargs.expanded_queries.keywords_expansions is None
-                or override_kwargs.expanded_queries.semantic_expansions is None
-            ):
-                raise ValueError("No expanded keyword or semantic threads found.")
-
         return ToolChoiceUpdate(
             tool_choice=ToolChoice(
                 tool=tool,

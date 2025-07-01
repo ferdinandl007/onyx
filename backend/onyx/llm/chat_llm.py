@@ -268,7 +268,7 @@ class DefaultMultiLLM(LLM):
     ):
         self._timeout = timeout
         if timeout is None:
-            if model_is_reasoning_model(model_name, model_provider):
+            if model_is_reasoning_model(model_name):
                 self._timeout = QA_TIMEOUT * 10  # Reasoning models are slow
             else:
                 self._timeout = QA_TIMEOUT

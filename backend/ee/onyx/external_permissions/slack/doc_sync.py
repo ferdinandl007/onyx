@@ -8,7 +8,7 @@ from onyx.access.models import DocExternalAccess
 from onyx.access.models import ExternalAccess
 from onyx.connectors.credentials_provider import OnyxDBCredentialsProvider
 from onyx.connectors.slack.connector import get_channels
-from onyx.connectors.slack.connector import make_paginated_slack_api_call
+from onyx.connectors.slack.connector import make_paginated_slack_api_call_w_retries
 from onyx.connectors.slack.connector import SlackConnector
 from onyx.db.models import ConnectorCredentialPair
 from onyx.indexing.indexing_heartbeat import IndexingHeartbeatInterface
@@ -64,7 +64,7 @@ def _fetch_channel_permissions(
     for channel_id in private_channel_ids:
         # Collect all member ids for the channel pagination calls
         member_ids = []
-        for result in make_paginated_slack_api_call(
+        for result in make_paginated_slack_api_call_w_retries(
             slack_client.conversations_members,
             channel=channel_id,
         ):
@@ -92,7 +92,7 @@ def _fetch_channel_permissions(
             external_user_emails=member_emails,
             # No group<->document mapping for slack
             external_user_group_ids=set(),
-            # No way to determine if slack is invite only without enterprise license
+            # No way to determine if slack is invite only without enterprise liscense
             is_public=False,
         )
 
@@ -108,15 +108,11 @@ def _get_slack_document_access(
 
     for doc_metadata_batch in slim_doc_generator:
         for doc_metadata in doc_metadata_batch:
-            if doc_metadata.external_access is None:
-                raise ValueError(
-                    f"No external access for document {doc_metadata.id}. "
-                    "Please check to make sure that your Slack bot token has the "
-                    "`channels:read` scope"
-                )
-
+            if doc_metadata.perm_sync_data is None:
+                continue
+            channel_id = doc_metadata.perm_sync_data["channel_id"]
             yield DocExternalAccess(
-                external_access=doc_metadata.external_access,
+                external_access=channel_permissions[channel_id],
                 doc_id=doc_metadata.id,
             )
 
